@@ -1,4 +1,5 @@
-//  Tool to calculate word-word cooccurrence statistics
+//  Tool to calculate word-word cooccurrence statistics for sentence aligned
+//  corpus of 2 languages.
 //
 //  Copyright (c) 2014 The Board of Trustees of
 //  The Leland Stanford Junior University. All Rights Reserved.
@@ -17,9 +18,8 @@
 //
 //
 //  For more information, bug reports, fixes, contact:
-//    Jeffrey Pennington (jpennin@stanford.edu)
-//    GlobalVectors@googlegroups.com
-//    http://nlp.stanford.edu/projects/glove/
+//    Jilei Wang (wangjileiRUC@gmail.com)
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +29,16 @@
 #define TSIZE 1048576
 #define SEED 1159241
 #define HASHFN bitwisehash
+
+
+/************************************************************
+  Structures, Public Variables, and Helping Functions
+************************************************************/
+
+
+//-----------------------------------------------------------
+
+/** Original structures */
 
 static const int MAX_STRING_LENGTH = 1000;
 typedef double real;
@@ -52,6 +62,19 @@ typedef struct hashrec {
     struct hashrec *next;
 } HASHREC;
 
+//-----------------------------------------------------------
+
+/** structure for Chinese Hanzi and Japanese Kanji Mapping */
+
+struct mapping_table {
+  char kanji[4];
+  char simplec[4];
+};
+
+struct mapping_table *k2sc, *sc2k;
+
+//-----------------------------------------------------------
+
 int verbose = 2; // 0, 1, or 2
 int cjglo = 0;
 long long max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
@@ -60,6 +83,9 @@ int window_size = 15; // default context window size
 int symmetric = 1; // 0: asymmetric, 1: symmetric
 real memory_limit = 3; // soft limit, in gigabytes, used to estimate optimal array sizes
 char *vocab_file, *file_head, *corpus_file_1, *corpus_file_2;
+
+
+//-----------------------------------------------------------
 
 /* Efficient string comparison */
 int scmp( char *s1, char *s2 ) {
@@ -212,6 +238,9 @@ void delete(CRECID *pq, int size) {
     }
 }
 
+
+//-----------------------------------------------------------
+
 /* Write top node of priority queue to file, accumulating duplicate entries */
 int merge_write(CRECID new, CRECID *old, FILE *fout) {
     if (new.word1 == old->word1 && new.word2 == old->word2) {
@@ -279,6 +308,305 @@ int merge_files(int num) {
     fprintf(stderr,"\n");
     return 0;
 }
+
+
+/************************************************************
+  CJ-GLO: Chinese Hanzi and Japanese Kanji Mapping
+
+  TODO(jileiwang): Now 2 arrays and binary seach is used,
+      since 5000 characters, at most 12 loops to search,
+      assume the corpus has V tokens, and in average k words
+      a sentence, and c characters a word, then we need to
+      apply binary search for O(12ckV) times. 
+      If we apply hash table here, optimally not hash 
+      collision happens, it is O(ckV).
+      So, chage to hash table when other code is working.
+************************************************************/
+
+
+// compare 2 characters, use qsort to rank from small to big
+int CompareKanji(const void *a, const void *b) {
+    return strcmp(((struct mapping_table *)a)->kanji, ((struct mapping_table *)b)->kanji);
+}
+
+int CompareSimpleC(const void *a, const void *b) {
+    return strcmp(((struct mapping_table *)a)->simplec, ((struct mapping_table *)b)->simplec);
+}
+
+void ReadMappingTable() {
+    int i, j;
+    char ch;
+    FILE *f;
+    k2sc = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
+    sc2k = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
+    //f = fopen("../data/kanji_sc.txt", "rb");
+    f = fopen("../data/kanji_sc_perline.txt", "rb");
+    for (i = 0; i < PAIR_NUM; i++) {
+        for (j = 0; j < 3; j++) {
+            k2sc[i].kanji[j] = sc2k[i].kanji[j] = fgetc(f);
+        }
+        k2sc[i].kanji[3] = sc2k[i].kanji[3] = 0;
+        ch = fgetc(f);
+        if (ch != ' ') {
+            printf("ERROR: i = %d, after kanji %s, ch = %c\n", i, k2sc[i].kanji, ch);
+            return;
+        }
+        for (j = 0; j < 3; j++) {
+            k2sc[i].simplec[j] = sc2k[i].simplec[j] = fgetc(f);
+        }
+        k2sc[i].simplec[3] = sc2k[i].simplec[3] = 0;
+        ch = fgetc(f);
+        if (ch != '\n') {
+            printf("ERROR: i = %d, after simplec %s, ch = %c\n", i, k2sc[i].simplec, ch);
+            return;
+        }
+    }
+    fclose(f);
+
+    qsort(&k2sc[0], PAIR_NUM, sizeof(struct mapping_table), CompareKanji);
+    qsort(&sc2k[0], PAIR_NUM, sizeof(struct mapping_table), CompareSimpleC);
+}
+
+// input word is ja, search and return its postion in k2sc
+// strcmp(k2sc[0].kanji, k2sc[1].kanji) == -1
+int BinarySearchKanji(char *ch, int left, int right) {
+    int mid, cmp;
+    if (right < left) {
+        return -1;
+    }
+    mid = left + (right - left) / 2;
+    cmp = strcmp(ch, k2sc[mid].kanji);
+    if (cmp == 0) {
+        //printf("kanji mid=%d\n", mid);
+        return mid;
+    }
+    else if (cmp < 0) {
+        return BinarySearchKanji(ch, left, mid - 1);
+    }
+    else {
+        return BinarySearchKanji(ch, mid + 1, right);
+    }
+}
+
+int BinarySearchSimpleC(char *ch, int left, int right) {
+    int mid, cmp;
+    if (right < left) {
+        return -1;
+    }
+    mid = left + (right - left) / 2;
+    cmp = strcmp(ch, sc2k[mid].simplec);
+    if (cmp == 0) {
+        return mid;
+    }
+    else if (cmp < 0) {
+        return BinarySearchSimpleC(ch, left, mid - 1);
+    }
+    else {
+        return BinarySearchSimpleC(ch, mid + 1, right);
+    }
+}
+
+int BinarySearch(int lang_id, char *ch) {
+    /*
+        lang_id = 0, means input word is ja, search and return its postion in k2sc
+        lang_id = 1, means input word is zh, search and return its postion in sc2k
+    */
+    if (lang_id == 0) {
+        return BinarySearchKanji(ch, 0, PAIR_NUM - 1);
+    }
+    else {
+        //printf("begin binary search %s\n", ch);
+        return BinarySearchSimpleC(ch, 0, PAIR_NUM - 1);
+    }
+}
+
+// TODO do not copy to target
+int CJMapping(char *source, int lang_id, char *target) {
+  int result, k;
+  result = BinarySearch(lang_id, source);
+  if (result >= 0) {
+    if (lang_id == 0) {
+      for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
+    }
+    else {
+      for (k = 0; k < 3; k++) target[k] = sc2k[result].kanji[k];
+    }
+  }
+  return result;
+}
+
+// return if a chinese and a japanese are match in some characters or not
+int CJWordMatch(long long word1, int lang_id, long long word2) {
+  char *w1, *w2;
+  char source_ch[4], target_ch[4];
+  int len1, len2;
+  int i, j, success;
+  int parallel = 1 - lang_id;
+
+  w1 = vocab[word1].word;
+  w2 = vocab[word2].word;
+  len1 = strlen(w1);
+  len2 = strlen(w2);
+  if (len1 % 3 != 0 || len2 % 3 != 0) {
+    return 0;
+  }
+
+  source_ch[3] = 0;
+  target_ch[3] = 0;
+  for (i = 0; i < len1; i += 3) {
+    for (j = 0; j < 3; j++) {
+      source_ch[j] = w1[i + j];
+    }
+    success = CJMapping(source_ch, lang_id, target_ch);
+    // compare target_ch and each characters in word2
+    if (success) {
+      cjboc_matched_count++;
+      for (j = 0; j < len2; j += 3) {
+        if (w2[j] == target_ch[0] && w2[j+1] == target_ch[1] && w2[j+2] == target_ch[2]) {
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/************************************************************
+  CJ-GLO: Bilingual Cooccurence Matrix Count Function
+************************************************************/
+
+/* Collect word-word cooccurrence counts from input stream */
+int get_bi_cooccurrence() {
+    int flag, x, y, fidcounter = 1;
+    long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+    char format[20], filename[200], str[MAX_STRING_LENGTH + 1];
+    FILE *fid, *foverflow;
+    real *bigram_table, r;
+    HASHREC *htmp, **vocab_hash = inithashtable();
+    CREC *cr = malloc(sizeof(CREC) * (overflow_length + 1));
+    history = malloc(sizeof(long long) * window_size);
+    
+    fprintf(stderr, "COUNTING COOCCURRENCES\n");
+    if (verbose > 0) {
+        fprintf(stderr, "window size: %d\n", window_size);
+        if (symmetric == 0) fprintf(stderr, "context: asymmetric\n");
+        else fprintf(stderr, "context: symmetric\n");
+    }
+    if (verbose > 1) fprintf(stderr, "max product: %lld\n", max_product);
+    if (verbose > 1) fprintf(stderr, "overflow length: %lld\n", overflow_length);
+    sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
+    if (verbose > 1) fprintf(stderr, "Reading vocab from file \"%s\"...", vocab_file);
+    fid = fopen(vocab_file,"r");
+    if (fid == NULL) {fprintf(stderr,"Unable to open vocab file %s.\n",vocab_file); return 1;}
+    while (fscanf(fid, format, str, &id) != EOF) hashinsert(vocab_hash, str, ++j); // Here id is not used: inserting vocab words into hash table with their frequency rank, j
+    fclose(fid);
+    vocab_size = j;
+    j = 0;
+    if (verbose > 1) fprintf(stderr, "loaded %lld words.\nBuilding lookup table...", vocab_size);
+    
+    /* Build auxiliary lookup table used to index into bigram_table */
+    lookup = (long long *)calloc( vocab_size + 1, sizeof(long long) );
+    if (lookup == NULL) {
+        fprintf(stderr, "Couldn't allocate memory!");
+        return 1;
+    }
+    lookup[0] = 1;
+    for (a = 1; a <= vocab_size; a++) {
+        if ((lookup[a] = max_product / a) < vocab_size) lookup[a] += lookup[a-1];
+        else lookup[a] = lookup[a-1] + vocab_size;
+    }
+    if (verbose > 1) fprintf(stderr, "table contains %lld elements.\n",lookup[a-1]);
+    
+    /* Allocate memory for full array which will store all cooccurrence counts for words whose product of frequency ranks is less than max_product */
+    bigram_table = (real *)calloc( lookup[a-1] , sizeof(real) );
+    if (bigram_table == NULL) {
+        fprintf(stderr, "Couldn't allocate memory!");
+        return 1;
+    }
+    
+    fid = stdin;
+    sprintf(format,"%%%ds",MAX_STRING_LENGTH);
+    sprintf(filename,"%s_%04d.bin",file_head, fidcounter);
+    foverflow = fopen(filename,"w");
+    if (verbose > 1) fprintf(stderr,"Processing token: 0");
+    
+    /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
+    while (1) {
+        if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
+            qsort(cr, ind, sizeof(CREC), compare_crec);
+            write_chunk(cr,ind,foverflow);
+            fclose(foverflow);
+            fidcounter++;
+            sprintf(filename,"%s_%04d.bin",file_head,fidcounter);
+            foverflow = fopen(filename,"w");
+            ind = 0;
+        }
+        flag = get_word(str, fid);
+        if (feof(fid)) break;
+        if (flag == 1) {j = 0; continue;} // Newline, reset line index (j)
+        counter++;
+        if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
+        htmp = hashsearch(vocab_hash, str);
+        if (htmp == NULL) continue; // Skip out-of-vocabulary words
+        w2 = htmp->id; // Target word (frequency rank)
+        for (k = j - 1; k >= ( (j > window_size) ? j - window_size : 0 ); k--) { // Iterate over all words to the left of target word, but not past beginning of line
+            w1 = history[k % window_size]; // Context word (frequency rank)
+            if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
+                bigram_table[lookup[w1-1] + w2 - 2] += 1.0/((real)(j-k)); // Weight by inverse of distance between words
+                if (symmetric > 0) bigram_table[lookup[w2-1] + w1 - 2] += 1.0/((real)(j-k)); // If symmetric context is used, exchange roles of w2 and w1 (ie look at right context too)
+            }
+            else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
+                cr[ind].word1 = w1;
+                cr[ind].word2 = w2;
+                cr[ind].val = 1.0/((real)(j-k));
+                ind++; // Keep track of how full temporary buffer is
+                if (symmetric > 0) { // Symmetric context
+                    cr[ind].word1 = w2;
+                    cr[ind].word2 = w1;
+                    cr[ind].val = 1.0/((real)(j-k));
+                    ind++;
+                }
+            }
+        }
+        history[j % window_size] = w2; // Target word is stored in circular buffer to become context word in the future
+        j++;
+    }
+    
+    /* Write out temp buffer for the final time (it may not be full) */
+    if (verbose > 1) fprintf(stderr,"\033[0GProcessed %lld tokens.\n",counter);
+    qsort(cr, ind, sizeof(CREC), compare_crec);
+    write_chunk(cr,ind,foverflow);
+    sprintf(filename,"%s_0000.bin",file_head);
+    
+    /* Write out full bigram_table, skipping zeros */
+    if (verbose > 1) fprintf(stderr, "Writing cooccurrences to disk");
+    fid = fopen(filename,"w");
+    j = 1e6;
+    for (x = 1; x <= vocab_size; x++) {
+        if ( (long long) (0.75*log(vocab_size / x)) < j) {j = (long long) (0.75*log(vocab_size / x)); if (verbose > 1) fprintf(stderr,".");} // log's to make it look (sort of) pretty
+        for (y = 1; y <= (lookup[x] - lookup[x-1]); y++) {
+            if ((r = bigram_table[lookup[x-1] - 2 + y]) != 0) {
+                fwrite(&x, sizeof(int), 1, fid);
+                fwrite(&y, sizeof(int), 1, fid);
+                fwrite(&r, sizeof(real), 1, fid);
+            }
+        }
+    }
+    
+    if (verbose > 1) fprintf(stderr,"%d files in total.\n",fidcounter + 1);
+    fclose(fid);
+    fclose(foverflow);
+    free(cr);
+    free(lookup);
+    free(bigram_table);
+    free(vocab_hash);
+    return merge_files(fidcounter + 1); // Merge the sorted temporary files
+}
+
+
+/************************************************************
+  Monolingual Cooccurence Matrix Count Function
+************************************************************/
 
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
@@ -407,6 +735,11 @@ int get_cooccurrence() {
     free(vocab_hash);
     return merge_files(fidcounter + 1); // Merge the sorted temporary files
 }
+
+
+/************************************************************
+                        Main Function
+************************************************************/
 
 int find_arg(char *str, int argc, char **argv) {
     int i;
