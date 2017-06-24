@@ -30,6 +30,10 @@
 #define SEED 1159241
 #define HASHFN bitwisehash
 
+/* pairs number of CJ-GLO - Chinese hanzi and Japanese kanji mapping file */
+#define PAIR_NUM 4856
+/* in count, most sentence are 3 to 60 words, the longest sentence in my corpus has 341 words*/
+#define MAX_SENTENCE_LENGTH 500
 
 /************************************************************
   Structures, Public Variables, and Helping Functions
@@ -57,7 +61,7 @@ typedef struct cooccur_rec_id {
 } CRECID;
 
 typedef struct hashrec {
-    char	*word;
+    char *word;
     long long id;
     struct hashrec *next;
 } HASHREC;
@@ -72,6 +76,10 @@ struct mapping_table {
 };
 
 struct mapping_table *k2sc, *sc2k;
+
+/** sentence of 2 languages*/
+
+HASHREC **sentence_1, **sentence_2;
 
 //-----------------------------------------------------------
 
@@ -434,7 +442,7 @@ int CJMapping(char *source, int lang_id, char *target) {
   }
   return result;
 }
-
+/*
 // return if a chinese and a japanese are match in some characters or not
 int CJWordMatch(long long word1, int lang_id, long long word2) {
   char *w1, *w2;
@@ -470,22 +478,47 @@ int CJWordMatch(long long word1, int lang_id, long long word2) {
   }
   return 0;
 }
-
+*/
 /************************************************************
   CJ-GLO: Bilingual Cooccurence Matrix Count Function
 ************************************************************/
 
-/* Collect word-word cooccurrence counts from input stream */
+int read_sentence(HASHREC **sentence, FILE *fin, HASHREC **vocab_hash, char prefix) {
+    int length = 0, flag;
+    char str_prefix[MAX_STRING_LENGTH + 2], *str;
+    str_prefix[0] = prefix;
+    str = str_prefix + 1;
+    while (1) {
+        flag = get_word(str, fin);
+        /* EOF or new line */
+        if (feof(fin) || flag == 1) return length;
+        sentence[length] = hashsearch(vocab_hash, str_prefix);
+        if (sentence[length] == NULL) continue; // Skip out-of-vocabulary words
+        length += 1;
+    }
+}
+
+/* Collect word-word cooccurrence counts from sentence aligned bilingual corpus */
 int get_bi_cooccurrence() {
     int flag, x, y, fidcounter = 1;
-    long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+    int sentence_length_1 = 0, sentence_length_2 = 0;
+    long long a, i, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
     char format[20], filename[200], str[MAX_STRING_LENGTH + 1];
-    FILE *fid, *foverflow;
+    FILE *fid, *foverflow, *fin_1, *fin_2;
     real *bigram_table, r;
     HASHREC *htmp, **vocab_hash = inithashtable();
     CREC *cr = malloc(sizeof(CREC) * (overflow_length + 1));
     history = malloc(sizeof(long long) * window_size);
+
+    /* inti sentence */
+    sentence_1 = (HASHREC **) malloc( sizeof(HASHREC *) * MAX_SENTENCE_LENGTH );
+    sentence_2 = (HASHREC **) malloc( sizeof(HASHREC *) * MAX_SENTENCE_LENGTH );
+    for (i = 0; i < MAX_SENTENCE_LENGTH; i++) {
+        sentence_1[i] = (HASHREC *) NULL;
+        sentence_2[i] = (HASHREC *) NULL;
+    }
     
+    /* print parameters */
     fprintf(stderr, "COUNTING COOCCURRENCES\n");
     if (verbose > 0) {
         fprintf(stderr, "window size: %d\n", window_size);
@@ -496,11 +529,14 @@ int get_bi_cooccurrence() {
     if (verbose > 1) fprintf(stderr, "overflow length: %lld\n", overflow_length);
     sprintf(format,"%%%ds %%lld", MAX_STRING_LENGTH); // Format to read from vocab file, which has (irrelevant) frequency data
     if (verbose > 1) fprintf(stderr, "Reading vocab from file \"%s\"...", vocab_file);
+    
+    /* read vocab from file, save the rank */
     fid = fopen(vocab_file,"r");
     if (fid == NULL) {fprintf(stderr,"Unable to open vocab file %s.\n",vocab_file); return 1;}
     while (fscanf(fid, format, str, &id) != EOF) hashinsert(vocab_hash, str, ++j); // Here id is not used: inserting vocab words into hash table with their frequency rank, j
     fclose(fid);
     vocab_size = j;
+
     j = 0;
     if (verbose > 1) fprintf(stderr, "loaded %lld words.\nBuilding lookup table...", vocab_size);
     
@@ -524,14 +560,28 @@ int get_bi_cooccurrence() {
         return 1;
     }
     
-    fid = stdin;
+    /* Open 2 coupus files */
+    //fid = stdin;
+    fin_1 = fopen(corpus_file_1, "r");
+    fin_2 = fopen(corpus_file_2, "r");
     sprintf(format,"%%%ds",MAX_STRING_LENGTH);
     sprintf(filename,"%s_%04d.bin",file_head, fidcounter);
+    
+    /* overflow file */
     foverflow = fopen(filename,"w");
     if (verbose > 1) fprintf(stderr,"Processing token: 0");
     
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
     while (1) {
+        /* Each corpus cannot have empty lines */
+        sentence_length_1 = read_sentence(sentence_1, fin_1, vocab_hash, '1');
+        if (sentence_length_1 <= 0) break;
+        sentence_length_2 = read_sentence(sentence_2, fin_2, vocab_hash, '2');
+        if (sentence_length_2 <= 0) break;
+        //printf("%d\t%d\n", sentence_length_1, sentence_length_2);
+        counter += sentence_length_1 + sentence_length_2;
+        if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
+
         if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
             qsort(cr, ind, sizeof(CREC), compare_crec);
             write_chunk(cr,ind,foverflow);
@@ -541,6 +591,7 @@ int get_bi_cooccurrence() {
             foverflow = fopen(filename,"w");
             ind = 0;
         }
+        /*
         flag = get_word(str, fid);
         if (feof(fid)) break;
         if (flag == 1) {j = 0; continue;} // Newline, reset line index (j)
@@ -570,7 +621,11 @@ int get_bi_cooccurrence() {
         }
         history[j % window_size] = w2; // Target word is stored in circular buffer to become context word in the future
         j++;
+        */
     }
+
+    // Test Only
+    return 0;
     
     /* Write out temp buffer for the final time (it may not be full) */
     if (verbose > 1) fprintf(stderr,"\033[0GProcessed %lld tokens.\n",counter);
@@ -796,9 +851,9 @@ int main(int argc, char **argv) {
     }
 
     if ((i = find_arg((char *)"-corpus-file-1", argc, argv)) > 0) strcpy(corpus_file_1, argv[i + 1]);
-    else return 1;
+    //else return 1;
     if ((i = find_arg((char *)"-corpus-file-2", argc, argv)) > 0) strcpy(corpus_file_2, argv[i + 1]);
-    else return 1;
+    //else return 1;
     if ((i = find_arg((char *)"-cjglo", argc, argv)) > 0) cjglo = atoi(argv[i + 1]);
     if ((i = find_arg((char *)"-verbose", argc, argv)) > 0) verbose = atoi(argv[i + 1]);
     if ((i = find_arg((char *)"-symmetric", argc, argv)) > 0) symmetric = atoi(argv[i + 1]);
@@ -820,6 +875,15 @@ int main(int argc, char **argv) {
     if ((i = find_arg((char *)"-max-product", argc, argv)) > 0) max_product = atoll(argv[i + 1]);
     if ((i = find_arg((char *)"-overflow-length", argc, argv)) > 0) overflow_length = atoll(argv[i + 1]);
     
-    return get_cooccurrence();
+    // Test Only
+    if (cjglo > 0 && 0) {
+        //printf("cjglo\n");
+        ReadMappingTable();
+        for (i = 0; i < PAIR_NUM; i++) {
+            printf("%s %s | %s %s\n", sc2k[i].simplec, sc2k[i].kanji, k2sc[i].simplec, k2sc[i].kanji);
+        }
+    }
+    // TODO
+    return get_bi_cooccurrence();
 }
 
