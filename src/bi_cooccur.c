@@ -80,11 +80,31 @@ struct mapping_table *k2sc, *sc2k;
 /** sentence of 2 languages*/
 
 HASHREC **sentence_1, **sentence_2;
+int sentence_length_1 = 0, sentence_length_2 = 0;
 
 //-----------------------------------------------------------
 
-int verbose = 2; // 0, 1, or 2
+/* variables from get_bi_cooccurrence */
+
+char overflow_filename[200];
+int fidcounter = 1, ind = 0;
+FILE *foverflow;
+CREC *cr;
+real *bigram_table;
+long long *lookup;
+
+//-----------------------------------------------------------
+
+/* CJ-Glo parameters */
+
+
 int cjglo = 0;
+real sentence_rate = 0;
+real cjglo_rate = 1;
+
+/* Original parameters */
+
+int verbose = 2; // 0, 1, or 2
 long long max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
 long long overflow_length; // Number of cooccurrence records whose product exceeds max_product to store in memory before writing to disk
 int window_size = 15; // default context window size
@@ -483,6 +503,67 @@ int CJWordMatch(long long word1, int lang_id, long long word2) {
   CJ-GLO: Bilingual Cooccurence Matrix Count Function
 ************************************************************/
 
+int check_overflow() {
+    if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
+        qsort(cr, ind, sizeof(CREC), compare_crec);
+        write_chunk(cr,ind,foverflow);
+        fclose(foverflow);
+        fidcounter++;
+        sprintf(overflow_filename,"%s_%04d.bin",file_head,fidcounter);
+        foverflow = fopen(overflow_filename,"w");
+        ind = 0;
+    }
+    return 0;
+}
+
+int add_to_table(int w1, int w2, real increment) {
+    if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
+        bigram_table[lookup[w1-1] + w2 - 2] += increment; // Weight by inverse of distance between words
+    }
+    else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
+        cr[ind].word1 = w1;
+        cr[ind].word2 = w2;
+        cr[ind].val = increment;
+        ind++; // Keep track of how full temporary buffer is
+        check_overflow();
+    }
+    return 0;
+}
+
+int calculate_cjglo() {
+    // TODO the most important part!
+    return 0;
+}
+
+int calculate_sentence(HASHREC **sentence, int sentence_length, int w1) {
+    int i, w2;
+    if (sentence_rate <= 0.000001) return 0;
+    for (i = 0; i < sentence_length; i++) {
+        w2 = sentence[i]->id;
+        add_to_table(w1, w2, sentence_rate);
+    }
+    return 0;
+}
+
+int calculate_window(HASHREC **sentence, int sentence_length, int w1, int center_pos, real rate) {
+    int begin, end, k, w2;
+    real increment;
+    begin = (center_pos - window_size) ? center_pos - window_size : 0;
+    end  = (center_pos + window_size < sentence_length) ? center_pos + window_size : sentence_length - 1;
+    // add the left and right window in sentence to cooccur table
+    for (k = begin; k <= end; k++) {
+        if (k == center_pos) {
+            if (symmetric > 0) continue;
+            else break;
+        }
+        w2 = sentence[k]->id; // Context word (frequency rank)
+        increment = rate * 1.0/fabs((real)(center_pos-k));
+        add_to_table(w1, w2, increment);
+    }
+    return 0;
+}
+
+/* read a sentence from corpus file, save corresponding HASHREC into array, return sentence length */
 int read_sentence(HASHREC **sentence, FILE *fin, HASHREC **vocab_hash, char prefix) {
     int length = 0, flag;
     char str_prefix[MAX_STRING_LENGTH + 2], *str;
@@ -491,7 +572,8 @@ int read_sentence(HASHREC **sentence, FILE *fin, HASHREC **vocab_hash, char pref
     while (1) {
         flag = get_word(str, fin);
         /* EOF or new line */
-        if (feof(fin) || flag == 1) return length;
+        if (feof(fin)) return -1;
+        if (flag == 1) return length;
         sentence[length] = hashsearch(vocab_hash, str_prefix);
         if (sentence[length] == NULL) continue; // Skip out-of-vocabulary words
         length += 1;
@@ -500,14 +582,15 @@ int read_sentence(HASHREC **sentence, FILE *fin, HASHREC **vocab_hash, char pref
 
 /* Collect word-word cooccurrence counts from sentence aligned bilingual corpus */
 int get_bi_cooccurrence() {
-    int flag, x, y, fidcounter = 1;
-    int sentence_length_1 = 0, sentence_length_2 = 0;
-    long long a, i, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
-    char format[20], filename[200], str[MAX_STRING_LENGTH + 1];
-    FILE *fid, *foverflow, *fin_1, *fin_2;
-    real *bigram_table, r;
+    int flag, x, y, sentence_counter = 0;;
+    int pos_1, pos_2;
+    long long a, i, j = 0, k, id, counter = 0, vocab_size, w1, w2, w3, *lookup, *history;
+    char format[20], str[MAX_STRING_LENGTH + 1];
+    FILE *fid, *fin_1, *fin_2;
+    real r;
     HASHREC *htmp, **vocab_hash = inithashtable();
-    CREC *cr = malloc(sizeof(CREC) * (overflow_length + 1));
+    
+    cr = malloc(sizeof(CREC) * (overflow_length + 1));
     history = malloc(sizeof(long long) * window_size);
 
     /* inti sentence */
@@ -565,32 +648,45 @@ int get_bi_cooccurrence() {
     fin_1 = fopen(corpus_file_1, "r");
     fin_2 = fopen(corpus_file_2, "r");
     sprintf(format,"%%%ds",MAX_STRING_LENGTH);
-    sprintf(filename,"%s_%04d.bin",file_head, fidcounter);
+    sprintf(overflow_filename,"%s_%04d.bin",file_head, fidcounter);
     
     /* overflow file */
-    foverflow = fopen(filename,"w");
-    if (verbose > 1) fprintf(stderr,"Processing token: 0");
+    foverflow = fopen(overflow_filename,"w");
+    
+    // if (verbose > 1) fprintf(stderr,"Processing token: 0");
     
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
     while (1) {
-        /* Each corpus cannot have empty lines */
+        /* Read each sentence pairs */
         sentence_length_1 = read_sentence(sentence_1, fin_1, vocab_hash, '1');
-        if (sentence_length_1 <= 0) break;
         sentence_length_2 = read_sentence(sentence_2, fin_2, vocab_hash, '2');
-        if (sentence_length_2 <= 0) break;
+        sentence_counter++;
+        if (sentence_counter % 7000 == 0) fprintf(stderr, "read %d sentence pairs\n", sentence_counter);
         //printf("%d\t%d\n", sentence_length_1, sentence_length_2);
-        counter += sentence_length_1 + sentence_length_2;
-        if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
-
-        if (ind >= overflow_length - window_size) { // If overflow buffer is (almost) full, sort it and write it to temporary file
-            qsort(cr, ind, sizeof(CREC), compare_crec);
-            write_chunk(cr,ind,foverflow);
-            fclose(foverflow);
-            fidcounter++;
-            sprintf(filename,"%s_%04d.bin",file_head,fidcounter);
-            foverflow = fopen(filename,"w");
-            ind = 0;
+        /* EOF */
+        if (sentence_length_1 < 0 || sentence_length_2 < 0) break;
+        /* no words in hastable in a sentence */
+        if (sentence_length_1 == 0 || sentence_length_2 == 0) continue;
+        // counter += sentence_length_1 + sentence_length_2;
+        // if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
+        
+        // for every word in sentence 1
+        for (pos_1 = 0; pos_1 < sentence_length_1; pos_1++) {
+            w1 = sentence_1[pos_1]->id;
+            calculate_window(sentence_1, sentence_length_1, w1, pos_1, 1);
+            calculate_sentence(sentence_2, sentence_length_2, w1);
+            if (cjglo > 0) calculate_cjglo();
         }
+
+
+        // for every word in sentence 2
+        for (pos_2 = 0; pos_2 < sentence_length_2; pos_2++) {
+            w1 = sentence_2[pos_2]->id;
+            calculate_window(sentence_2, sentence_length_2, w1, pos_2, 1);
+            calculate_sentence(sentence_1, sentence_length_1, w1);
+            if (cjglo > 0) calculate_cjglo();
+        }
+
         /*
         flag = get_word(str, fid);
         if (feof(fid)) break;
@@ -631,11 +727,11 @@ int get_bi_cooccurrence() {
     if (verbose > 1) fprintf(stderr,"\033[0GProcessed %lld tokens.\n",counter);
     qsort(cr, ind, sizeof(CREC), compare_crec);
     write_chunk(cr,ind,foverflow);
-    sprintf(filename,"%s_0000.bin",file_head);
+    sprintf(overflow_filename,"%s_0000.bin",file_head);
     
     /* Write out full bigram_table, skipping zeros */
     if (verbose > 1) fprintf(stderr, "Writing cooccurrences to disk");
-    fid = fopen(filename,"w");
+    fid = fopen(overflow_filename,"w");
     j = 1e6;
     for (x = 1; x <= vocab_size; x++) {
         if ( (long long) (0.75*log(vocab_size / x)) < j) {j = (long long) (0.75*log(vocab_size / x)); if (verbose > 1) fprintf(stderr,".");} // log's to make it look (sort of) pretty
@@ -666,7 +762,7 @@ int get_bi_cooccurrence() {
 /* Collect word-word cooccurrence counts from input stream */
 int get_cooccurrence() {
     int flag, x, y, fidcounter = 1;
-    long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *lookup, *history;
+    long long a, j = 0, k, id, counter = 0, ind = 0, vocab_size, w1, w2, *history;
     char format[20], filename[200], str[MAX_STRING_LENGTH + 1];
     FILE *fid, *foverflow;
     real *bigram_table, r;
