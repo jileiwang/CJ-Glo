@@ -104,7 +104,7 @@ real cjglo_rate = 1;
 
 /* Original parameters */
 
-int verbose = 2; // 0, 1, or 2
+int verbose = 3; // 0, 1, 2, or 3 (debug)
 long long max_product; // Cutoff for product of word frequency ranks below which cooccurrence counts will be stored in a compressed full array
 long long overflow_length; // Number of cooccurrence records whose product exceeds max_product to store in memory before writing to disk
 int window_size = 15; // default context window size
@@ -517,10 +517,16 @@ int check_overflow() {
 }
 
 int add_to_table(int w1, int w2, real increment) {
+    int i;
+    if (verbose > 2) fprintf(stderr, "w1: %d, w2: %d\n", w1, w2);
     if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
+        if (verbose > 2) fprintf(stderr, "w1-1: %d\n", w1-1);
+        // for (i = 0; i < 40000; i++) if (verbose > 2) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+        if (verbose > 2) fprintf(stderr, "bigram_table[ %d ]\n", lookup[w1-1] + w2 - 2);
         bigram_table[lookup[w1-1] + w2 - 2] += increment; // Weight by inverse of distance between words
     }
     else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
+        if (verbose > 2) fprintf(stderr, "ind: %d\n", ind);
         cr[ind].word1 = w1;
         cr[ind].word2 = w2;
         cr[ind].val = increment;
@@ -546,18 +552,30 @@ int calculate_sentence(HASHREC **sentence, int sentence_length, int w1) {
 }
 
 int calculate_window(HASHREC **sentence, int sentence_length, int w1, int center_pos, real rate) {
-    int begin, end, k, w2;
+    int begin, end, k, w2, i;
     real increment;
-    begin = (center_pos - window_size) ? center_pos - window_size : 0;
+    begin = (center_pos - window_size > 0) ? center_pos - window_size : 0;
     end  = (center_pos + window_size < sentence_length) ? center_pos + window_size : sentence_length - 1;
+    if (verbose > 2) fprintf(stderr, "center_pos: %d, begin: %d, end: %d\n", center_pos, begin, end);
     // add the left and right window in sentence to cooccur table
     for (k = begin; k <= end; k++) {
         if (k == center_pos) {
             if (symmetric > 0) continue;
             else break;
         }
+        if (verbose > 2) fprintf(stderr, "k: %d\n", k);
         w2 = sentence[k]->id; // Context word (frequency rank)
-        increment = rate * 1.0/fabs((real)(center_pos-k));
+        
+        if (verbose > 2) fprintf(stderr, "w2: %d\n", w2);
+        
+        increment = rate * 1.0/fabs((real)(center_pos - k));
+
+        if (verbose > 2) fprintf(stderr, "increment: %lf\n", increment);
+
+        if (verbose > 2) fprintf(stderr, "Before call add_to_table.\n");
+        if (verbose > 2) fprintf(stderr, "lookup %d\n", lookup);
+        // if (verbose > 2) for (i = 0; i < 40000; i+=3000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    
         add_to_table(w1, w2, increment);
     }
     return 0;
@@ -580,11 +598,28 @@ int read_sentence(HASHREC **sentence, FILE *fin, HASHREC **vocab_hash, char pref
     }
 }
 
+// Test Only
+int print_lookup() {
+    int i;
+    fprintf(stderr, "print_lookup.\n");
+    if (verbose > 2) for (i = 0; i < 40000; i+=7000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    return 0;
+}
+
+// Test Only
+int print_lookup_2(long long *lookup) {
+    int i;
+    fprintf(stderr, "lookup %d\n", lookup);
+    fprintf(stderr, "print_lookup.\n");
+    if (verbose > 2) for (i = 0; i < 40000; i+=7000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    return 0;
+}
+
 /* Collect word-word cooccurrence counts from sentence aligned bilingual corpus */
 int get_bi_cooccurrence() {
     int flag, x, y, sentence_counter = 0;;
     int pos_1, pos_2;
-    long long a, i, j = 0, k, id, counter = 0, vocab_size, w1, w2, w3, *lookup, *history;
+    long long a, i, j = 0, k, id, counter = 0, vocab_size, w1, w2, w3, *history;
     char format[20], str[MAX_STRING_LENGTH + 1];
     FILE *fid, *fin_1, *fin_2;
     real r;
@@ -635,6 +670,13 @@ int get_bi_cooccurrence() {
         else lookup[a] = lookup[a-1] + vocab_size;
     }
     if (verbose > 1) fprintf(stderr, "table contains %lld elements.\n",lookup[a-1]);
+
+    // if (verbose > 2) for (i = 0; i < 40000; i+=3000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    // print_lookup();
+
+    // fprintf(stderr, "lookup %d\n", lookup);
+
+    // print_lookup_2(lookup);  
     
     /* Allocate memory for full array which will store all cooccurrence counts for words whose product of frequency ranks is less than max_product */
     bigram_table = (real *)calloc( lookup[a-1] , sizeof(real) );
@@ -642,6 +684,9 @@ int get_bi_cooccurrence() {
         fprintf(stderr, "Couldn't allocate memory!");
         return 1;
     }
+    fprintf(stderr, "Allocate memory for bigram_table.\n");
+    // if (verbose > 2) for (i = 0; i < 40000; i+=3000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    
     
     /* Open 2 coupus files */
     //fid = stdin;
@@ -657,6 +702,10 @@ int get_bi_cooccurrence() {
     
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
     while (1) {
+
+        if (verbose > 2) fprintf(stderr, "Start while loop.\n");
+        // if (verbose > 2) for (i = 0; i < 40000; i+=3000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
+    
         /* Read each sentence pairs */
         sentence_length_1 = read_sentence(sentence_1, fin_1, vocab_hash, '1');
         sentence_length_2 = read_sentence(sentence_2, fin_2, vocab_hash, '2');
@@ -721,7 +770,7 @@ int get_bi_cooccurrence() {
     }
 
     // Test Only
-    return 0;
+    //return 0;
     
     /* Write out temp buffer for the final time (it may not be full) */
     if (verbose > 1) fprintf(stderr,"\033[0GProcessed %lld tokens.\n",counter);
