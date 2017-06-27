@@ -541,7 +541,10 @@ int calculate_cjglo() {
     return 0;
 }
 
-int calculate_sentence(HASHREC **sentence, int sentence_length, int w1) {
+/**
+ * Calculate the words in the dual sentence's influence to a certain word w1 
+ */
+int calculate_dual_sentence(HASHREC **sentence, int sentence_length, int w1) {
     int i, w2;
     if (sentence_rate <= 0.000001) return 0;
     for (i = 0; i < sentence_length; i++) {
@@ -551,6 +554,10 @@ int calculate_sentence(HASHREC **sentence, int sentence_length, int w1) {
     return 0;
 }
 
+/** 
+ * Calculate the words in a certain window's influence to a certain word w1,
+ * The window and target word can be either in one sentence or in dual sentences.
+ */
 int calculate_window(HASHREC **sentence, int sentence_length, int w1, int center_pos, real rate) {
     int begin, end, k, w2, i;
     real increment;
@@ -723,7 +730,7 @@ int get_bi_cooccurrence() {
         for (pos_1 = 0; pos_1 < sentence_length_1; pos_1++) {
             w1 = sentence_1[pos_1]->id;
             calculate_window(sentence_1, sentence_length_1, w1, pos_1, 1);
-            calculate_sentence(sentence_2, sentence_length_2, w1);
+            calculate_dual_sentence(sentence_2, sentence_length_2, w1);
             if (cjglo > 0) calculate_cjglo();
         }
 
@@ -732,7 +739,7 @@ int get_bi_cooccurrence() {
         for (pos_2 = 0; pos_2 < sentence_length_2; pos_2++) {
             w1 = sentence_2[pos_2]->id;
             calculate_window(sentence_2, sentence_length_2, w1, pos_2, 1);
-            calculate_sentence(sentence_1, sentence_length_1, w1);
+            calculate_dual_sentence(sentence_1, sentence_length_1, w1);
             if (cjglo > 0) calculate_cjglo();
         }
 
@@ -1000,6 +1007,8 @@ int main(int argc, char **argv) {
     if ((i = find_arg((char *)"-corpus-file-2", argc, argv)) > 0) strcpy(corpus_file_2, argv[i + 1]);
     //else return 1;
     if ((i = find_arg((char *)"-cjglo", argc, argv)) > 0) cjglo = atoi(argv[i + 1]);
+    if ((i = find_arg((char *)"-cjglo-rate", argc, argv)) > 0) cjglo_rate = atoi(argv[i + 1]);
+    if ((i = find_arg((char *)"-sentence-rate", argc, argv)) > 0) sentence_rate = atof(argv[i + 1]);
     if ((i = find_arg((char *)"-verbose", argc, argv)) > 0) verbose = atoi(argv[i + 1]);
     if ((i = find_arg((char *)"-symmetric", argc, argv)) > 0) symmetric = atoi(argv[i + 1]);
     if ((i = find_arg((char *)"-window-size", argc, argv)) > 0) window_size = atoi(argv[i + 1]);
