@@ -97,10 +97,11 @@ long long *lookup;
 
 /* CJ-Glo parameters */
 
-
+char *mapping_table_file_path = "data/kanji_sc_perline.txt";
 int cjglo = 0;
-real sentence_rate = 0;
-real cjglo_rate = 1;
+real sentence_rate = 0.0;
+real cjglo_rate = 1.0;
+int cj_matched_count = 0;
 
 /* Original parameters */
 
@@ -368,7 +369,7 @@ void ReadMappingTable() {
     k2sc = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
     sc2k = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
     //f = fopen("../data/kanji_sc.txt", "rb");
-    f = fopen("../data/kanji_sc_perline.txt", "rb");
+    f = fopen(mapping_table_file_path, "rb");
     for (i = 0; i < PAIR_NUM; i++) {
         for (j = 0; j < 3; j++) {
             k2sc[i].kanji[j] = sc2k[i].kanji[j] = fgetc(f);
@@ -418,12 +419,21 @@ int BinarySearchKanji(char *ch, int left, int right) {
 
 int BinarySearchSimpleC(char *ch, int left, int right) {
     int mid, cmp;
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: ch %s, left %d, right %d\n", ch, left, right);
     if (right < left) {
         return -1;
     }
     mid = left + (right - left) / 2;
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: mid %d\n", mid);
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k %p\n", sc2k);
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid] %p\n", sc2k[mid]);
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %p\n", sc2k[mid].simplec);
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d\n", sc2k[mid].simplec, mid);
     cmp = strcmp(ch, sc2k[mid].simplec);
+    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
+    
     if (cmp == 0) {
+        // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
         return mid;
     }
     else if (cmp < 0) {
@@ -443,7 +453,7 @@ int BinarySearch(int lang_id, char *ch) {
         return BinarySearchKanji(ch, 0, PAIR_NUM - 1);
     }
     else {
-        //printf("begin binary search %s\n", ch);
+        // if (verbose > 2) fprintf(stderr, "begin binary search %s\n", ch);
         return BinarySearchSimpleC(ch, 0, PAIR_NUM - 1);
     }
 }
@@ -451,7 +461,9 @@ int BinarySearch(int lang_id, char *ch) {
 // TODO do not copy to target
 int CJMapping(char *source, int lang_id, char *target) {
   int result, k;
+  // if (verbose) fprintf(stderr, "source %s, lang_id %d\n", source, lang_id);
   result = BinarySearch(lang_id, source);
+  // if (verbose) fprintf(stderr, "source %s, lang_id %d, result %d\n", source, lang_id, result);
   if (result >= 0) {
     if (lang_id == 0) {
       for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
@@ -462,35 +474,37 @@ int CJMapping(char *source, int lang_id, char *target) {
   }
   return result;
 }
-/*
-// return if a chinese and a japanese are match in some characters or not
-int CJWordMatch(long long word1, int lang_id, long long word2) {
-  char *w1, *w2;
+
+/* 
+ * check if a chinese word and a japanese word have common character or not,
+ * 
+ */
+int CJWordMatch(char *word1, char *word2, int lang_id) {
   char source_ch[4], target_ch[4];
   int len1, len2;
   int i, j, success;
   int parallel = 1 - lang_id;
 
-  w1 = vocab[word1].word;
-  w2 = vocab[word2].word;
-  len1 = strlen(w1);
-  len2 = strlen(w2);
+  len1 = strlen(word1);
+  len2 = strlen(word2);
   if (len1 % 3 != 0 || len2 % 3 != 0) {
     return 0;
   }
-
+  // if (verbose > 2) fprintf(stderr, "CJWordMatch : %s - %s - %d\n", word1, word2, lang_id);
   source_ch[3] = 0;
   target_ch[3] = 0;
   for (i = 0; i < len1; i += 3) {
     for (j = 0; j < 3; j++) {
-      source_ch[j] = w1[i + j];
+      source_ch[j] = word1[i + j];
     }
+    // if (verbose > 2) fprintf(stderr, "source character : %s\n", source_ch);
     success = CJMapping(source_ch, lang_id, target_ch);
     // compare target_ch and each characters in word2
-    if (success) {
-      cjboc_matched_count++;
+    if (success >= 0) {
+      cj_matched_count++;
       for (j = 0; j < len2; j += 3) {
-        if (w2[j] == target_ch[0] && w2[j+1] == target_ch[1] && w2[j+2] == target_ch[2]) {
+        if (word2[j] == target_ch[0] && word2[j+1] == target_ch[1] && word2[j+2] == target_ch[2]) {
+          if (verbose > 2) fprintf(stderr, "source_ch %s, target_ch %s, j %d, word2 %s\n", source_ch, target_ch, j, word2);
           return 1;
         }
       }
@@ -498,7 +512,7 @@ int CJWordMatch(long long word1, int lang_id, long long word2) {
   }
   return 0;
 }
-*/
+
 /************************************************************
   CJ-GLO: Bilingual Cooccurence Matrix Count Function
 ************************************************************/
@@ -518,26 +532,21 @@ int check_overflow() {
 
 int add_to_table(int w1, int w2, real increment) {
     int i;
-    if (verbose > 2) fprintf(stderr, "w1: %d, w2: %d\n", w1, w2);
+    // if (verbose > 2) fprintf(stderr, "w1: %d, w2: %d\n", w1, w2);
     if ( w1 < max_product/w2 ) { // Product is small enough to store in a full array
-        if (verbose > 2) fprintf(stderr, "w1-1: %d\n", w1-1);
+        // if (verbose > 2) fprintf(stderr, "w1-1: %d\n", w1-1);
         // for (i = 0; i < 40000; i++) if (verbose > 2) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
-        if (verbose > 2) fprintf(stderr, "bigram_table[ %d ]\n", lookup[w1-1] + w2 - 2);
+        // if (verbose > 2) fprintf(stderr, "bigram_table[ %d ]\n", lookup[w1-1] + w2 - 2);
         bigram_table[lookup[w1-1] + w2 - 2] += increment; // Weight by inverse of distance between words
     }
     else { // Product is too big, data is likely to be sparse. Store these entries in a temporary buffer to be sorted, merged (accumulated), and written to file when it gets full.
-        if (verbose > 2) fprintf(stderr, "ind: %d\n", ind);
+        // if (verbose > 2) fprintf(stderr, "ind: %d\n", ind);
         cr[ind].word1 = w1;
         cr[ind].word2 = w2;
         cr[ind].val = increment;
         ind++; // Keep track of how full temporary buffer is
         check_overflow();
     }
-    return 0;
-}
-
-int calculate_cjglo() {
-    // TODO the most important part!
     return 0;
 }
 
@@ -570,21 +579,46 @@ int calculate_window(HASHREC **sentence, int sentence_length, int w1, int center
             if (symmetric > 0) continue;
             else break;
         }
-        if (verbose > 2) fprintf(stderr, "k: %d\n", k);
+        // if (verbose > 2) fprintf(stderr, "k: %d\n", k);
         w2 = sentence[k]->id; // Context word (frequency rank)
         
-        if (verbose > 2) fprintf(stderr, "w2: %d\n", w2);
+        // if (verbose > 2) fprintf(stderr, "w2: %d\n", w2);
         
         increment = rate * 1.0/fabs((real)(center_pos - k));
 
-        if (verbose > 2) fprintf(stderr, "increment: %lf\n", increment);
+        // if (verbose > 2) fprintf(stderr, "increment: %lf\n", increment);
 
-        if (verbose > 2) fprintf(stderr, "Before call add_to_table.\n");
-        if (verbose > 2) fprintf(stderr, "lookup %d\n", lookup);
+        // if (verbose > 2) fprintf(stderr, "Before call add_to_table.\n");
+        // if (verbose > 2) fprintf(stderr, "lookup %d\n", lookup);
         // if (verbose > 2) for (i = 0; i < 40000; i+=3000) fprintf(stderr, "lookup[%d]: %lld\n", i, lookup[i]);
     
         add_to_table(w1, w2, increment);
     }
+    return 0;
+}
+
+/**
+ * Calculate a 
+ * lang_id : 0 - k2sc, 1 - sc2k
+ */
+int calculate_cjglo(HASHREC **sentence, int sentence_length, HASHREC *target_word, int lang_id) {
+    int w1, i;
+    char *word1, *word2;
+    w1 = target_word->id;
+    word1 = target_word->word + 1;
+    if (verbose > 2) fprintf(stderr, "---- Start Matching %s ----\n", word1);
+    for (i = 0; i < sentence_length; i++) {
+        word2 = sentence[i]->word + 1;
+        // if (verbose > 2) fprintf(stderr, "        ---- To %s ----\n", word2);
+        if (CJWordMatch(word1, word2, lang_id)) {
+            calculate_window(sentence, sentence_length, w1, i, cjglo_rate);
+            if (verbose > 2) fprintf(stderr, "Word Matched!===== %s <-> %s\n", target_word->word, sentence[i]->word);
+        }
+        else {
+            if (verbose > 2) fprintf(stderr, "Word didn't Match! %s <-> %s\n", target_word->word, sentence[i]->word);
+        }
+    }
+    if (verbose > 2) scanf("%d", &i);
     return 0;
 }
 
@@ -707,6 +741,11 @@ int get_bi_cooccurrence() {
     
     // if (verbose > 1) fprintf(stderr,"Processing token: 0");
     
+    /* if open CJ-CLO modle, read the Chinese-Japanses common character mapping table */
+    if (cjglo > 0) {
+        ReadMappingTable();
+    }
+
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
     while (1) {
 
@@ -727,20 +766,22 @@ int get_bi_cooccurrence() {
         // if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
         
         // for every word in sentence 1
+        // if cjglo, kanji to hanzi, lang_id = 1
         for (pos_1 = 0; pos_1 < sentence_length_1; pos_1++) {
             w1 = sentence_1[pos_1]->id;
             calculate_window(sentence_1, sentence_length_1, w1, pos_1, 1);
             calculate_dual_sentence(sentence_2, sentence_length_2, w1);
-            if (cjglo > 0) calculate_cjglo();
+            if (cjglo > 0) calculate_cjglo(sentence_2, sentence_length_2, sentence_1[pos_1], 1);
         }
 
 
         // for every word in sentence 2
+        // if cjglo, hanzi to kanji, lang_id = 0
         for (pos_2 = 0; pos_2 < sentence_length_2; pos_2++) {
             w1 = sentence_2[pos_2]->id;
             calculate_window(sentence_2, sentence_length_2, w1, pos_2, 1);
             calculate_dual_sentence(sentence_1, sentence_length_1, w1);
-            if (cjglo > 0) calculate_cjglo();
+            if (cjglo > 0) calculate_cjglo(sentence_1, sentence_length_1, sentence_2[pos_2], 0);
         }
 
         /*
