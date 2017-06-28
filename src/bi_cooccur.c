@@ -69,13 +69,29 @@ typedef struct hashrec {
 //-----------------------------------------------------------
 
 /** structure for Chinese Hanzi and Japanese Kanji Mapping */
+// @Deprecated
+// struct mapping_table {
+//   char kanji[4];
+//   char simplec[4];
+// };
 
-struct mapping_table {
-  char kanji[4];
-  char simplec[4];
-};
+// struct mapping_table *k2sc, *sc2k;
 
-struct mapping_table *k2sc, *sc2k;
+
+typedef struct mapping_table {
+  char *original;//original[4];
+  // at most 7 corresponding characters
+  char *corresponding;//corresponding[22];
+} mapping_table;
+
+mapping_table **k2sc, **sc2k;
+
+
+char *sc2k_filename = "data/simplec2kanji.txt";
+char *k2sc_filename = "data/kanji2simplec.txt";
+
+int sc2k_size = 5006;
+int k2sc_size = 5787;
 
 /** sentence of 2 languages*/
 
@@ -354,47 +370,122 @@ int merge_files(int num) {
 
 
 // compare 2 characters, use qsort to rank from small to big
-int CompareKanji(const void *a, const void *b) {
-    return strcmp(((struct mapping_table *)a)->kanji, ((struct mapping_table *)b)->kanji);
+// int CompareKanji(const void *a, const void *b) {
+//     return strcmp(((struct mapping_table *)a)->kanji, ((struct mapping_table *)b)->kanji);
+// }
+
+// int CompareSimpleC(const void *a, const void *b) {
+//     return strcmp(((struct mapping_table *)a)->simplec, ((struct mapping_table *)b)->simplec);
+// }
+
+int compare_original(const void *a, const void *b) {
+    return strcmp(((struct mapping_table *)a)->original, ((struct mapping_table *)b)->original);
 }
 
-int CompareSimpleC(const void *a, const void *b) {
-    return strcmp(((struct mapping_table *)a)->simplec, ((struct mapping_table *)b)->simplec);
+int get_characters(char *word, FILE *fin) {
+    int i = 0, ch;
+    while (!feof(fin)) {
+        ch = fgetc(fin);
+        //if (ch == 13) continue;
+        if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
+            break;
+        }
+        word[i++] = ch;
+        //if (i >= MAX_STRING_LENGTH - 1) i--;   // truncate words that exceed max length
+    }
+    word[i] = 0;
+    return i;
 }
 
-void ReadMappingTable() {
-    int i, j;
-    char ch;
+
+mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
+    int i;
     FILE *f;
-    k2sc = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
-    sc2k = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
-    //f = fopen("../data/kanji_sc.txt", "rb");
-    f = fopen(mapping_table_file_path, "rb");
-    for (i = 0; i < PAIR_NUM; i++) {
-        for (j = 0; j < 3; j++) {
-            k2sc[i].kanji[j] = sc2k[i].kanji[j] = fgetc(f);
-        }
-        k2sc[i].kanji[3] = sc2k[i].kanji[3] = 0;
-        ch = fgetc(f);
-        if (ch != ' ') {
-            printf("ERROR: i = %d, after kanji %s, ch = %c\n", i, k2sc[i].kanji, ch);
-            return;
-        }
-        for (j = 0; j < 3; j++) {
-            k2sc[i].simplec[j] = sc2k[i].simplec[j] = fgetc(f);
-        }
-        k2sc[i].simplec[3] = sc2k[i].simplec[3] = 0;
-        ch = fgetc(f);
-        if (ch != '\n') {
-            printf("ERROR: i = %d, after simplec %s, ch = %c\n", i, k2sc[i].simplec, ch);
-            return;
-        }
+    char *original, *corresponding;
+    mapping_table *table_record;
+    mapping_table **table;
+    table = (mapping_table **)malloc( sizeof(mapping_table *) * table_size );
+
+    f = fopen(filename, "rb");
+    for (i = 0; i < table_size; i++) {
+        table_record = (mapping_table *)malloc( sizeof(mapping_table));
+        table_record->original = (char *)malloc( sizeof(char) * 7);
+        if (i % 700 == 0) fprintf(stderr, "table_record->original %p\n", table_record->original);
+        table_record->corresponding = (char *)malloc( sizeof(char) * 22);
+        get_characters(table_record->original, f);
+        get_characters(table_record->corresponding, f);
+        //table_record->original = original;
+        //table_record->corresponding = corresponding;
+        table[i] = table_record;
+        if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding);
+        
     }
     fclose(f);
 
-    qsort(&k2sc[0], PAIR_NUM, sizeof(struct mapping_table), CompareKanji);
-    qsort(&sc2k[0], PAIR_NUM, sizeof(struct mapping_table), CompareSimpleC);
+    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p %d, table[7]->original %p\n", table, table[7], table[7], table[7]->original);
+
+    for (i = 0; i < sc2k_size; i += 700) {
+        fprintf(stderr, "%d ", i);
+        printf("%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+    }
+
+    
+    qsort(table, table_size, sizeof(mapping_table*), compare_original);
+    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p %d, table[7]->original %p\n", table, table[7], table[7]);
+
+    for (i = 0; i < sc2k_size; i += 700) {
+        fprintf(stderr, "%d ", i);
+        printf("%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+    }
+
+    return table;
 }
+
+
+
+void ReadMappingTable() {
+    sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
+    k2sc = ReadMappingTableFromFile(k2sc_filename, k2sc_size);
+}
+
+
+/**
+ * @Deprecated
+ * This function is using to read a 1-1
+ */
+// void _ReadMappingTable() {
+//     int i, j;
+//     char ch;
+//     FILE *f;
+//     k2sc = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
+//     sc2k = (struct mapping_table *)calloc(PAIR_NUM, sizeof(struct mapping_table));
+//     //f = fopen("../data/kanji_sc.txt", "rb");
+//     f = fopen(mapping_table_file_path, "rb");
+//     for (i = 0; i < PAIR_NUM; i++) {
+//         for (j = 0; j < 3; j++) {
+//             k2sc[i].kanji[j] = sc2k[i].kanji[j] = fgetc(f);
+//         }
+//         k2sc[i].kanji[3] = sc2k[i].kanji[3] = 0;
+//         ch = fgetc(f);
+//         if (ch != ' ') {
+//             printf("ERROR: i = %d, after kanji %s, ch = %c\n", i, k2sc[i].kanji, ch);
+//             return;
+//         }
+//         for (j = 0; j < 3; j++) {
+//             k2sc[i].simplec[j] = sc2k[i].simplec[j] = fgetc(f);
+//         }
+//         k2sc[i].simplec[3] = sc2k[i].simplec[3] = 0;
+//         ch = fgetc(f);
+//         if (ch != '\n') {
+//             printf("ERROR: i = %d, after simplec %s, ch = %c\n", i, k2sc[i].simplec, ch);
+//             return;
+//         }
+//     }
+//     fclose(f);
+
+//     qsort(&k2sc[0], PAIR_NUM, sizeof(struct mapping_table), CompareKanji);
+//     qsort(&sc2k[0], PAIR_NUM, sizeof(struct mapping_table), CompareSimpleC);
+// }
 
 // input word is ja, search and return its postion in k2sc
 // strcmp(k2sc[0].kanji, k2sc[1].kanji) == -1
@@ -404,7 +495,8 @@ int BinarySearchKanji(char *ch, int left, int right) {
         return -1;
     }
     mid = left + (right - left) / 2;
-    cmp = strcmp(ch, k2sc[mid].kanji);
+    // ======
+    //cmp = strcmp(ch, k2sc[mid].kanji);
     if (cmp == 0) {
         //printf("kanji mid=%d\n", mid);
         return mid;
@@ -429,7 +521,10 @@ int BinarySearchSimpleC(char *ch, int left, int right) {
     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid] %p\n", sc2k[mid]);
     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %p\n", sc2k[mid].simplec);
     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d\n", sc2k[mid].simplec, mid);
-    cmp = strcmp(ch, sc2k[mid].simplec);
+    
+    // ======
+    // cmp = strcmp(ch, sc2k[mid].simplec);
+    
     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
     
     if (cmp == 0) {
@@ -466,10 +561,12 @@ int CJMapping(char *source, int lang_id, char *target) {
   // if (verbose) fprintf(stderr, "source %s, lang_id %d, result %d\n", source, lang_id, result);
   if (result >= 0) {
     if (lang_id == 0) {
-      for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
+//=======
+//      for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
     }
     else {
-      for (k = 0; k < 3; k++) target[k] = sc2k[result].kanji[k];
+//=======
+//      for (k = 0; k < 3; k++) target[k] = sc2k[result].kanji[k];
     }
   }
   return result;
@@ -984,6 +1081,23 @@ int get_cooccurrence() {
     return merge_files(fidcounter + 1); // Merge the sorted temporary files
 }
 
+int test_mapping_table_1() {
+    int i;
+    fprintf(stderr, "test_mapping_table_1\n");
+    sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
+    fprintf(stderr, "After ReadMappingTableFromFile\n");
+    //fprintf(stderr, "%p\n", sc2k);
+    fprintf(stderr, "table %p, table[7] %p, table[7]->original %p%d\n", sc2k, sc2k[7], sc2k[7], sc2k[7]->original);
+    for (i = 0; i < sc2k_size; i += 700) {
+        fprintf(stderr, "%d ", i);
+        printf("%s %s\n", sc2k[i]->original, sc2k[i]->corresponding);
+    }
+}
+
+int test_mapping_table_2() {
+//    ReadMappingTableFromFile(sc2k_filename, *sc2k, sc2k_size);
+//    ReadMappingTableFromFile(k2sc_filename, *k2sc, k2sc_size);
+}
 
 /************************************************************
                         Main Function
@@ -1075,9 +1189,15 @@ int main(int argc, char **argv) {
         //printf("cjglo\n");
         ReadMappingTable();
         for (i = 0; i < PAIR_NUM; i++) {
-            printf("%s %s | %s %s\n", sc2k[i].simplec, sc2k[i].kanji, k2sc[i].simplec, k2sc[i].kanji);
+//====
+//            printf("%s %s | %s %s\n", sc2k[i].simplec, sc2k[i].kanji, k2sc[i].simplec, k2sc[i].kanji);
         }
     }
+
+    // Test Only
+    test_mapping_table_1();
+    return 0;
+    
     // TODO
     return get_bi_cooccurrence();
 }

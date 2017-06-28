@@ -95,6 +95,10 @@ def kanji_2_simple_chinese():
     print dic
 
 def simple_chinese_2_kanji():
+    """
+        A Simple Chinese Character is mapping to X Kanji Character:
+        {1: 3873, 2: 903, 3: 189, 4: 34, 5: 5, 6: 1, 7: 1}
+    """
     fin = open('data/kanji_mapping_table_clean.txt', 'r')
     dic = defaultdict(list)
     for line in fin:
