@@ -426,7 +426,7 @@ mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
 
     for (i = 0; i < sc2k_size; i += 700) {
         fprintf(stderr, "%d ", i);
-        printf("%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
     }
 
     
@@ -435,7 +435,7 @@ mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
 
     for (i = 0; i < sc2k_size; i += 700) {
         fprintf(stderr, "%d ", i);
-        printf("%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
     }
 
     return table;
@@ -1088,8 +1088,9 @@ int test_mapping_table_1() {
     fprintf(stderr, "After ReadMappingTableFromFile\n");
     //fprintf(stderr, "%p\n", sc2k);
     fprintf(stderr, "table %p, table[7] %p, table[7]->original %p%d\n", sc2k, sc2k[7], sc2k[7], sc2k[7]->original);
-    for (i = 0; i < sc2k_size; i += 700) {
-        fprintf(stderr, "%d ", i);
+    for (i = 0; i < sc2k_size; i++) {
+        if (i % 700 == 0) fprintf(stderr, "%d ", i);
+        if (i % 700 == 0) fprintf(stderr, "%p %p\n", sc2k[i]->original, sc2k[i]->corresponding);
         printf("%s %s\n", sc2k[i]->original, sc2k[i]->corresponding);
     }
 }
