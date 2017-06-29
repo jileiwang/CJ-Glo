@@ -2,25 +2,28 @@
 #include <stdio.h>
 #include "bisearch_mapping_table.h"
 
-/*
+
+extern MAPTABREC **k2sc, **sc2k;
+
+
 void test_mapping_table_1(index) {
     int result;
 
-    result = bisearch_table(sc2k, sc2k[index]->original, 0, sc2k_size - 1);
+    result = bisearch_table(sc2k, sc2k[index]->original, 0, SC2K_SIZE - 1);
     fprintf(stderr, "result = %d\n", result);
 
-    result = bisearch_table(k2sc, k2sc[index]->original, 0, k2sc_size - 1);
+    result = bisearch_table(k2sc, k2sc[index]->original, 0, K2SC_SIZE - 1);
     fprintf(stderr, "result = %d\n", result);
 }
 
 void test_mapping_table_2() {
     int result;
 
-    result = bisearch_table(sc2k, sc2k[sc2k_size - 1]->original, 0, sc2k_size - 1);
-    fprintf(stderr, "result = %d (%d)\n", result, sc2k_size - 1);
+    result = bisearch_table(sc2k, sc2k[SC2K_SIZE - 1]->original, 0, SC2K_SIZE - 1);
+    fprintf(stderr, "result = %d (%d)\n", result, SC2K_SIZE - 1);
 
-    result = bisearch_table(k2sc, k2sc[k2sc_size - 1]->original, 0, k2sc_size - 1);
-    fprintf(stderr, "result = %d (%d)\n", result, k2sc_size - 1);
+    result = bisearch_table(k2sc, k2sc[K2SC_SIZE - 1]->original, 0, K2SC_SIZE - 1);
+    fprintf(stderr, "result = %d (%d)\n", result, K2SC_SIZE - 1);
 }
 
 void test_search() {
@@ -31,7 +34,7 @@ void test_search() {
     test_mapping_table_1(5000);
     test_mapping_table_2();
 }
-*/
+
 
 void test_mapping() {
 
