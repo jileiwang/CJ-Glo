@@ -759,9 +759,11 @@ int calculate_cjglo(HASHREC **sentence, int sentence_length, HASHREC *target_wor
     int w1, i;
     char *word1, *word2;
     w1 = target_word->id;
+    // do not include the prefix
     word1 = target_word->word + 1;
     if (verbose > 2) fprintf(stderr, "---- Start Matching %s ----\n", word1);
     for (i = 0; i < sentence_length; i++) {
+        // do not include the prefix
         word2 = sentence[i]->word + 1;
         // if (verbose > 2) fprintf(stderr, "        ---- To %s ----\n", word2);
         if (CJWordMatch(word1, word2, lang_id)) {
@@ -920,7 +922,7 @@ int get_bi_cooccurrence() {
         // if ((counter%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[19G%lld",counter);
         
         // for every word in sentence 1
-        // if cjglo, kanji to hanzi, lang_id = 1
+        // if cjglo, simple 2 kanji, lang_id = 1
         for (pos_1 = 0; pos_1 < sentence_length_1; pos_1++) {
             w1 = sentence_1[pos_1]->id;
             calculate_window(sentence_1, sentence_length_1, w1, pos_1, 1);
@@ -930,7 +932,7 @@ int get_bi_cooccurrence() {
 
 
         // for every word in sentence 2
-        // if cjglo, hanzi to kanji, lang_id = 0
+        // if cjglo, kanji 2 simple chinese, lang_id = 0
         for (pos_2 = 0; pos_2 < sentence_length_2; pos_2++) {
             w1 = sentence_2[pos_2]->id;
             calculate_window(sentence_2, sentence_length_2, w1, pos_2, 1);
