@@ -25,23 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
-
-typedef struct mapping_table_record {
-  char original[4];
-  // at most 7 corresponding characters
-  char corresponding[22];
-} MAPTABREC;
-
-MAPTABREC **k2sc, **sc2k;
-
-
-char *sc2k_filename = "../data/simplec2kanji.txt";
-char *k2sc_filename = "../data/kanji2simplec.txt";
-
-int sc2k_size = 5006;
-int k2sc_size = 5787;
-
+#include "bisearch_mapping_table.h"
 
 
 /**
