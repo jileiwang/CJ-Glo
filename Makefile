@@ -19,7 +19,7 @@ vocab_count : $(SRCDIR)/vocab_count.c
 bi_vocab_count : $(SRCDIR)/bi_vocab_count.c
 	$(CC) $(SRCDIR)/bi_vocab_count.c -o $(BUILDDIR)/bi_vocab_count $(CFLAGS)
 bi_cooccur : $(SRCDIR)/bi_cooccur.c
-	$(CC) $(SRCDIR)/bi_cooccur.c -o $(BUILDDIR)/bi_cooccur $(CFLAGS)
+	$(CC) $(SRCDIR)/bi_cooccur.c $(SRCDIR)/bisearch_mapping_table.c -o $(BUILDDIR)/bi_cooccur $(CFLAGS)
 
 clean:
 	rm -rf glove shuffle cooccur vocab_count bi_vocab_count bi_cooccur build

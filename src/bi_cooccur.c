@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "bisearch_mapping_table.h"
 
 #define TSIZE 1048576
 #define SEED 1159241
@@ -67,35 +68,6 @@ typedef struct hashrec {
 } HASHREC;
 
 //-----------------------------------------------------------
-
-/** structure for Chinese Hanzi and Japanese Kanji Mapping */
-// @Deprecated
-// struct mapping_table {
-//   char kanji[4];
-//   char simplec[4];
-// };
-
-// struct mapping_table *k2sc, *sc2k;
-
-
-typedef struct mapping_table {
-  //char *original;
-  char original[4];
-  // at most 7 corresponding characters
-  //char *corresponding;//
-  char corresponding[22];
-} mapping_table;
-
-mapping_table **k2sc, **sc2k;
-
-
-char *sc2k_filename = "data/simplec2kanji.txt";
-char *k2sc_filename = "data/kanji2simplec.txt";
-
-int sc2k_size = 5006;
-int k2sc_size = 5787;
-
-int debug_counter = 0;
 
 /** sentence of 2 languages*/
 
@@ -382,101 +354,101 @@ int merge_files(int num) {
 //     return strcmp(((struct mapping_table *)a)->simplec, ((struct mapping_table *)b)->simplec);
 // }
 
-int compare_original_(const void *a, const void *b) {
-    int t = strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
-    fprintf(stderr, "%s %s %d\n", ((mapping_table *)a)->original, ((mapping_table *)b)->original, t);
-    scanf("%d", &t);
-    return strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
-}
+// int compare_original_(const void *a, const void *b) {
+//     int t = strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
+//     fprintf(stderr, "%s %s %d\n", ((mapping_table *)a)->original, ((mapping_table *)b)->original, t);
+//     scanf("%d", &t);
+//     return strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
+// }
 
-int compare_original(mapping_table *a, mapping_table *b) {
-    int t;
-    if (debug_counter < 7) {
-        t = strcmp(a->original, b->original);
-        fprintf(stderr, "%s %s %x %x %d\n", a->original, b->original, a, b, t);
-        scanf("%d", &t);
-        debug_counter++;
-    }
-    return strcmp(a->original, b->original);
-}
+// int compare_original(mapping_table *a, mapping_table *b) {
+//     int t;
+//     if (debug_counter < 7) {
+//         t = strcmp(a->original, b->original);
+//         fprintf(stderr, "%s %s %x %x %d\n", a->original, b->original, a, b, t);
+//         scanf("%d", &t);
+//         debug_counter++;
+//     }
+//     return strcmp(a->original, b->original);
+// }
 
-int get_characters(char *word, FILE *fin) {
-    int i = 0, ch;
-    while (!feof(fin)) {
-        ch = fgetc(fin);
-        //if (ch == 13) continue;
-        if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
-            break;
-        }
-        word[i++] = ch;
-        //if (i >= MAX_STRING_LENGTH - 1) i--;   // truncate words that exceed max length
-    }
-    word[i] = 0;
-    return i;
-}
+// int get_characters(char *word, FILE *fin) {
+//     int i = 0, ch;
+//     while (!feof(fin)) {
+//         ch = fgetc(fin);
+//         //if (ch == 13) continue;
+//         if ((ch == ' ') || (ch == '\t') || (ch == '\n')) {
+//             break;
+//         }
+//         word[i++] = ch;
+//         //if (i >= MAX_STRING_LENGTH - 1) i--;   // truncate words that exceed max length
+//     }
+//     word[i] = 0;
+//     return i;
+// }
 
 
-mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
-    int i;
-    FILE *f;
-    char *original, *corresponding;
-    mapping_table *table_record;
-    mapping_table **table;
-    table = (mapping_table **)malloc( sizeof(mapping_table *) * table_size );
+// mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
+//     int i;
+//     FILE *f;
+//     char *original, *corresponding;
+//     mapping_table *table_record;
+//     mapping_table **table;
+//     table = (mapping_table **)malloc( sizeof(mapping_table *) * table_size );
 
-    f = fopen(filename, "rb");
-    for (i = 0; i < table_size; i++) {
-// for char * original.
-        // table_record = (mapping_table *)malloc( sizeof(mapping_table));
-        // table_record->original = (char *)malloc( sizeof(char) * 30);
-        // if (i % 700 == 0) fprintf(stderr, "table_record->original %p\n", table_record->original);
-        // table_record->corresponding = (char *)malloc( sizeof(char) * 50);
-        // get_characters(table_record->original, f);
-        // get_characters(table_record->corresponding, f);
-        // //table_record->original = original;
-        // //table_record->corresponding = corresponding;
-        // table[i] = table_record;
-        // if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
-// for char original[4]         
-        table_record = (mapping_table *)malloc( sizeof(mapping_table) );
-        get_characters(table_record->original, f);
-        get_characters(table_record->corresponding, f);
-        //table_record->original = original;
-        //table_record->corresponding = corresponding;
-        table[i] = table_record;
-        if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
+//     f = fopen(filename, "rb");
+//     for (i = 0; i < table_size; i++) {
+// // for char * original.
+//         // table_record = (mapping_table *)malloc( sizeof(mapping_table));
+//         // table_record->original = (char *)malloc( sizeof(char) * 30);
+//         // if (i % 700 == 0) fprintf(stderr, "table_record->original %p\n", table_record->original);
+//         // table_record->corresponding = (char *)malloc( sizeof(char) * 50);
+//         // get_characters(table_record->original, f);
+//         // get_characters(table_record->corresponding, f);
+//         // //table_record->original = original;
+//         // //table_record->corresponding = corresponding;
+//         // table[i] = table_record;
+//         // if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
+// // for char original[4]         
+//         table_record = (mapping_table *)malloc( sizeof(mapping_table) );
+//         get_characters(table_record->original, f);
+//         get_characters(table_record->corresponding, f);
+//         //table_record->original = original;
+//         //table_record->corresponding = corresponding;
+//         table[i] = table_record;
+//         if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
 
-    }
-    fclose(f);
+//     }
+//     fclose(f);
 
-    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
+//     fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
 
-    for (i = 0; i < sc2k_size; i += 700) {
-        fprintf(stderr, "%d ", i);
-        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
-    }
+//     for (i = 0; i < sc2k_size; i += 700) {
+//         fprintf(stderr, "%d ", i);
+//         fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+//     }
 
-    fprintf(stderr, "---  %p %p %p %p %p\n", table, &table[0], table[0], table[1], table[2]);
+//     fprintf(stderr, "---  %p %p %p %p %p\n", table, &table[0], table[0], table[1], table[2]);
     
-    // TODO the bug is because the usage of qsort!!!!!!!===============
-    qsort(&table[0], table_size, sizeof(mapping_table*), compare_original);
+//     // TODO the bug is because the usage of qsort!!!!!!!===============
+//     qsort(&table[0], table_size, sizeof(mapping_table*), compare_original);
 
-    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
+//     fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
 
-    for (i = 0; i < sc2k_size; i += 700) {
-        fprintf(stderr, "%d ", i);
-        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
-    }
+//     for (i = 0; i < sc2k_size; i += 700) {
+//         fprintf(stderr, "%d ", i);
+//         fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+//     }
 
-    return table;
-}
+//     return table;
+// }
 
 
 
-void ReadMappingTable() {
-    sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
-    k2sc = ReadMappingTableFromFile(k2sc_filename, k2sc_size);
-}
+// void ReadMappingTable() {
+//     sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
+//     k2sc = ReadMappingTableFromFile(k2sc_filename, k2sc_size);
+// }
 
 
 /**
@@ -517,155 +489,155 @@ void ReadMappingTable() {
 //     qsort(&sc2k[0], PAIR_NUM, sizeof(struct mapping_table), CompareSimpleC);
 // }
 
-int BinarySearchTable(mapping_table **table, char *ch, int left, int right) {
-    int mid, cmp;
-    if (right < left) {
-        return -1;
-    }
-    mid = left + (right - left) / 2;
-    fprintf(stderr, "mid = %d, %s\n", mid, table[mid]->original);
+// int BinarySearchTable(mapping_table **table, char *ch, int left, int right) {
+//     int mid, cmp;
+//     if (right < left) {
+//         return -1;
+//     }
+//     mid = left + (right - left) / 2;
+//     fprintf(stderr, "mid = %d, %s\n", mid, table[mid]->original);
     
-    //cmp = strcmp(ch, table[mid]->original);
+//     //cmp = strcmp(ch, table[mid]->original);
     
-    cmp = strcmp(table[mid]->original, ch);
+//     cmp = strcmp(table[mid]->original, ch);
 
 
-//int compare_original(const void *a, const void *b) {
-//    return strcmp(((struct mapping_table *)a)->original, ((struct mapping_table *)b)->original);
-//}
-    if (cmp == 0) {
-        return mid;
-    }
-    else if (cmp < 0) {
-        return BinarySearchTable(table, ch, left, mid - 1);
-    }
-    else {
-        return BinarySearchTable(table, ch, mid + 1, right);
-    }
-}
+// //int compare_original(const void *a, const void *b) {
+// //    return strcmp(((struct mapping_table *)a)->original, ((struct mapping_table *)b)->original);
+// //}
+//     if (cmp == 0) {
+//         return mid;
+//     }
+//     else if (cmp < 0) {
+//         return BinarySearchTable(table, ch, left, mid - 1);
+//     }
+//     else {
+//         return BinarySearchTable(table, ch, mid + 1, right);
+//     }
+// }
 
-// input word is ja, search and return its postion in k2sc
-// strcmp(k2sc[0].kanji, k2sc[1].kanji) == -1
-int BinarySearchKanji(char *ch, int left, int right) {
-    int mid, cmp;
-    if (right < left) {
-        return -1;
-    }
-    mid = left + (right - left) / 2;
-    // ======
-    //cmp = strcmp(ch, k2sc[mid].kanji);
-    if (cmp == 0) {
-        //printf("kanji mid=%d\n", mid);
-        return mid;
-    }
-    else if (cmp < 0) {
-        return BinarySearchKanji(ch, left, mid - 1);
-    }
-    else {
-        return BinarySearchKanji(ch, mid + 1, right);
-    }
-}
+// // input word is ja, search and return its postion in k2sc
+// // strcmp(k2sc[0].kanji, k2sc[1].kanji) == -1
+// int BinarySearchKanji(char *ch, int left, int right) {
+//     int mid, cmp;
+//     if (right < left) {
+//         return -1;
+//     }
+//     mid = left + (right - left) / 2;
+//     // ======
+//     //cmp = strcmp(ch, k2sc[mid].kanji);
+//     if (cmp == 0) {
+//         //printf("kanji mid=%d\n", mid);
+//         return mid;
+//     }
+//     else if (cmp < 0) {
+//         return BinarySearchKanji(ch, left, mid - 1);
+//     }
+//     else {
+//         return BinarySearchKanji(ch, mid + 1, right);
+//     }
+// }
 
-int BinarySearchSimpleC(char *ch, int left, int right) {
-    int mid, cmp;
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: ch %s, left %d, right %d\n", ch, left, right);
-    if (right < left) {
-        return -1;
-    }
-    mid = left + (right - left) / 2;
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: mid %d\n", mid);
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k %p\n", sc2k);
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid] %p\n", sc2k[mid]);
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %p\n", sc2k[mid].simplec);
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d\n", sc2k[mid].simplec, mid);
+// int BinarySearchSimpleC(char *ch, int left, int right) {
+//     int mid, cmp;
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: ch %s, left %d, right %d\n", ch, left, right);
+//     if (right < left) {
+//         return -1;
+//     }
+//     mid = left + (right - left) / 2;
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: mid %d\n", mid);
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k %p\n", sc2k);
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid] %p\n", sc2k[mid]);
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %p\n", sc2k[mid].simplec);
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d\n", sc2k[mid].simplec, mid);
     
-    // ======
-    // cmp = strcmp(ch, sc2k[mid].simplec);
+//     // ======
+//     // cmp = strcmp(ch, sc2k[mid].simplec);
     
-    // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
+//     // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
     
-    if (cmp == 0) {
-        // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
-        return mid;
-    }
-    else if (cmp < 0) {
-        return BinarySearchSimpleC(ch, left, mid - 1);
-    }
-    else {
-        return BinarySearchSimpleC(ch, mid + 1, right);
-    }
-}
+//     if (cmp == 0) {
+//         // if (verbose > 2) fprintf(stderr, "BinarySearchSimpleC: sc2k[mid].simplec %s, mid %d, cmp %d\n", sc2k[mid].simplec, mid, cmp);
+//         return mid;
+//     }
+//     else if (cmp < 0) {
+//         return BinarySearchSimpleC(ch, left, mid - 1);
+//     }
+//     else {
+//         return BinarySearchSimpleC(ch, mid + 1, right);
+//     }
+// }
 
-int BinarySearch(int lang_id, char *ch) {
-    /*
-        lang_id = 0, means input word is ja, search and return its postion in k2sc
-        lang_id = 1, means input word is zh, search and return its postion in sc2k
-    */
-    if (lang_id == 0) {
-        return BinarySearchKanji(ch, 0, PAIR_NUM - 1);
-    }
-    else {
-        // if (verbose > 2) fprintf(stderr, "begin binary search %s\n", ch);
-        return BinarySearchSimpleC(ch, 0, PAIR_NUM - 1);
-    }
-}
+// int BinarySearch(int lang_id, char *ch) {
+//     /*
+//         lang_id = 0, means input word is ja, search and return its postion in k2sc
+//         lang_id = 1, means input word is zh, search and return its postion in sc2k
+//     */
+//     if (lang_id == 0) {
+//         return BinarySearchKanji(ch, 0, PAIR_NUM - 1);
+//     }
+//     else {
+//         // if (verbose > 2) fprintf(stderr, "begin binary search %s\n", ch);
+//         return BinarySearchSimpleC(ch, 0, PAIR_NUM - 1);
+//     }
+// }
 
-// TODO do not copy to target
-int CJMapping(char *source, int lang_id, char *target) {
-  int result, k;
-  // if (verbose) fprintf(stderr, "source %s, lang_id %d\n", source, lang_id);
-  result = BinarySearch(lang_id, source);
-  // if (verbose) fprintf(stderr, "source %s, lang_id %d, result %d\n", source, lang_id, result);
-  if (result >= 0) {
-    if (lang_id == 0) {
-//=======
-//      for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
-    }
-    else {
-//=======
-//      for (k = 0; k < 3; k++) target[k] = sc2k[result].kanji[k];
-    }
-  }
-  return result;
-}
+// // TODO do not copy to target
+// int CJMapping(char *source, int lang_id, char *target) {
+//   int result, k;
+//   // if (verbose) fprintf(stderr, "source %s, lang_id %d\n", source, lang_id);
+//   result = BinarySearch(lang_id, source);
+//   // if (verbose) fprintf(stderr, "source %s, lang_id %d, result %d\n", source, lang_id, result);
+//   if (result >= 0) {
+//     if (lang_id == 0) {
+// //=======
+// //      for (k = 0; k < 3; k++) target[k] = k2sc[result].simplec[k];
+//     }
+//     else {
+// //=======
+// //      for (k = 0; k < 3; k++) target[k] = sc2k[result].kanji[k];
+//     }
+//   }
+//   return result;
+// }
 
-/* 
- * check if a chinese word and a japanese word have common character or not,
- * 
- */
-int CJWordMatch(char *word1, char *word2, int lang_id) {
-  char source_ch[4], target_ch[4];
-  int len1, len2;
-  int i, j, success;
-  int parallel = 1 - lang_id;
+// /* 
+//  * check if a chinese word and a japanese word have common character or not,
+//  * 
+//  */
+// int CJWordMatch(char *word1, char *word2, int lang_id) {
+//   char source_ch[4], target_ch[4];
+//   int len1, len2;
+//   int i, j, success;
+//   int parallel = 1 - lang_id;
 
-  len1 = strlen(word1);
-  len2 = strlen(word2);
-  if (len1 % 3 != 0 || len2 % 3 != 0) {
-    return 0;
-  }
-  // if (verbose > 2) fprintf(stderr, "CJWordMatch : %s - %s - %d\n", word1, word2, lang_id);
-  source_ch[3] = 0;
-  target_ch[3] = 0;
-  for (i = 0; i < len1; i += 3) {
-    for (j = 0; j < 3; j++) {
-      source_ch[j] = word1[i + j];
-    }
-    // if (verbose > 2) fprintf(stderr, "source character : %s\n", source_ch);
-    success = CJMapping(source_ch, lang_id, target_ch);
-    // compare target_ch and each characters in word2
-    if (success >= 0) {
-      cj_matched_count++;
-      for (j = 0; j < len2; j += 3) {
-        if (word2[j] == target_ch[0] && word2[j+1] == target_ch[1] && word2[j+2] == target_ch[2]) {
-          if (verbose > 2) fprintf(stderr, "source_ch %s, target_ch %s, j %d, word2 %s\n", source_ch, target_ch, j, word2);
-          return 1;
-        }
-      }
-    }
-  }
-  return 0;
-}
+//   len1 = strlen(word1);
+//   len2 = strlen(word2);
+//   if (len1 % 3 != 0 || len2 % 3 != 0) {
+//     return 0;
+//   }
+//   // if (verbose > 2) fprintf(stderr, "CJWordMatch : %s - %s - %d\n", word1, word2, lang_id);
+//   source_ch[3] = 0;
+//   target_ch[3] = 0;
+//   for (i = 0; i < len1; i += 3) {
+//     for (j = 0; j < 3; j++) {
+//       source_ch[j] = word1[i + j];
+//     }
+//     // if (verbose > 2) fprintf(stderr, "source character : %s\n", source_ch);
+//     success = CJMapping(source_ch, lang_id, target_ch);
+//     // compare target_ch and each characters in word2
+//     if (success >= 0) {
+//       cj_matched_count++;
+//       for (j = 0; j < len2; j += 3) {
+//         if (word2[j] == target_ch[0] && word2[j+1] == target_ch[1] && word2[j+2] == target_ch[2]) {
+//           if (verbose > 2) fprintf(stderr, "source_ch %s, target_ch %s, j %d, word2 %s\n", source_ch, target_ch, j, word2);
+//           return 1;
+//         }
+//       }
+//     }
+//   }
+//   return 0;
+// }
 
 /************************************************************
   CJ-GLO: Bilingual Cooccurence Matrix Count Function
@@ -761,20 +733,20 @@ int calculate_cjglo(HASHREC **sentence, int sentence_length, HASHREC *target_wor
     w1 = target_word->id;
     // do not include the prefix
     word1 = target_word->word + 1;
-    if (verbose > 2) fprintf(stderr, "---- Start Matching %s ----\n", word1);
+    // if (verbose > 2) fprintf(stderr, "---- Start Matching %s ----\n", word1);
     for (i = 0; i < sentence_length; i++) {
         // do not include the prefix
         word2 = sentence[i]->word + 1;
         // if (verbose > 2) fprintf(stderr, "        ---- To %s ----\n", word2);
-        if (CJWordMatch(word1, word2, lang_id)) {
+        if (has_common_character(word1, word2, lang_id)) {
             calculate_window(sentence, sentence_length, w1, i, cjglo_rate);
-            if (verbose > 2) fprintf(stderr, "Word Matched!===== %s <-> %s\n", target_word->word, sentence[i]->word);
+            //if (verbose > 2) fprintf(stderr, "Word Matched!===== %s <-> %s\n", target_word->word, sentence[i]->word);
         }
         else {
-            if (verbose > 2) fprintf(stderr, "Word didn't Match! %s <-> %s\n", target_word->word, sentence[i]->word);
+            //if (verbose > 2) fprintf(stderr, "Word didn't Match! %s <-> %s\n", target_word->word, sentence[i]->word);
         }
     }
-    if (verbose > 2) scanf("%d", &i);
+    // if (verbose > 2) scanf("%d", &i);
     return 0;
 }
 
@@ -899,7 +871,7 @@ int get_bi_cooccurrence() {
     
     /* if open CJ-CLO modle, read the Chinese-Japanses common character mapping table */
     if (cjglo > 0) {
-        ReadMappingTable();
+        load_mapping_tables();
     }
 
     /* For each token in input stream, calculate a weighted cooccurrence sum within window_size */
@@ -1140,22 +1112,22 @@ int get_cooccurrence() {
     return merge_files(fidcounter + 1); // Merge the sorted temporary files
 }
 
-int test_mapping_table_1() {
-    int i, result;
-    fprintf(stderr, "test_mapping_table_1\n");
-    sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
-    fprintf(stderr, "After ReadMappingTableFromFile\n");
-    //fprintf(stderr, "%p\n", sc2k);
-    fprintf(stderr, "table %p, table[7] %p, table[7]->original %p\n", sc2k, sc2k[7], sc2k[7]->original);
-    for (i = 0; i < sc2k_size; i++) {
-        if (i % 700 == 0) fprintf(stderr, "%d ", i);
-        if (i % 700 == 0) fprintf(stderr, "%p %p\n", sc2k[i]->original, sc2k[i]->corresponding);
-        printf("%s %s %p %p %p\n", sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]);
-    }
-    result = BinarySearchTable(sc2k, sc2k[7]->original, 0, sc2k_size - 1);
-    fprintf(stderr, "result = %d\n", result);
+// int test_mapping_table_1() {
+//     int i, result;
+//     fprintf(stderr, "test_mapping_table_1\n");
+//     sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
+//     fprintf(stderr, "After ReadMappingTableFromFile\n");
+//     //fprintf(stderr, "%p\n", sc2k);
+//     fprintf(stderr, "table %p, table[7] %p, table[7]->original %p\n", sc2k, sc2k[7], sc2k[7]->original);
+//     for (i = 0; i < sc2k_size; i++) {
+//         if (i % 700 == 0) fprintf(stderr, "%d ", i);
+//         if (i % 700 == 0) fprintf(stderr, "%p %p\n", sc2k[i]->original, sc2k[i]->corresponding);
+//         printf("%s %s %p %p %p\n", sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]);
+//     }
+//     result = BinarySearchTable(sc2k, sc2k[7]->original, 0, sc2k_size - 1);
+//     fprintf(stderr, "result = %d\n", result);
 
-}
+// }
 
 int test_mapping_table_2() {
 //    ReadMappingTableFromFile(sc2k_filename, *sc2k, sc2k_size);
@@ -1258,8 +1230,8 @@ int main(int argc, char **argv) {
     }
 
     // Test Only
-    test_mapping_table_1();
-    return 0;
+    // test_mapping_table_1();
+    // return 0;
     
     // TODO
     return get_bi_cooccurrence();
