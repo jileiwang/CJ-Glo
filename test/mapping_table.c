@@ -52,9 +52,11 @@ int compare_original(const void *a, const void *b) {
     //int t = strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
     //fprintf(stderr, "%s %s %d\n", ((mapping_table *)a)->original, ((mapping_table *)b)->original, t);
     //scanf("%d", &t);
-    mapping_table *aa, *bb;
-    aa = ((mapping_table *)a);
-    bb = ((mapping_table *)b);
+    mapping_table *aa, *bb, **aaa, **bbb;
+    aaa = ((mapping_table **)a);
+    aa = aaa[0];
+    bbb = ((mapping_table **)b);
+    bb = bbb[0];
     fprintf(stderr, "Compareing: %s %s\n", aa->original, bb->original);
     fprintf(stderr, "    &a=%p, &b=%p, \n  &aa=%p, &bb=%p, \n  &aa->original=%p, bb->original=%p\n", a, b, aa, bb, aa->original, bb->original);
     return strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
@@ -122,6 +124,7 @@ mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
 
     //fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
     fprintf(stderr, "=============== After Reading File ============\n");
+    fprintf(stderr, "&table=%p\n", table);
     for (i = 0; i < sc2k_size; i++) {
         fprintf(stderr, "%d ", i);
         fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
@@ -131,6 +134,7 @@ mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
     qsort(&table[0], table_size, sizeof(mapping_table*), compare_original);
 
     fprintf(stderr, "=============== After QSORT ============\n");
+    fprintf(stderr, "&table=%p\n", table);
     for (i = 0; i < sc2k_size; i++) {
         fprintf(stderr, "%d ", i);
         fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
