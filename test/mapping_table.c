@@ -41,25 +41,30 @@ mapping_table **k2sc, **sc2k;
 char *sc2k_filename = "../data/simplec2kanji.txt";
 char *k2sc_filename = "../data/kanji2simplec.txt";
 
-int sc2k_size = 5006;
+int sc2k_size = 5;//5006;
 int k2sc_size = 5787;
 
 int debug_counter = 0;
 
 
 
-int compare_original_2(const void *a, const void *b) {
-    int t = strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
-    fprintf(stderr, "%s %s %d\n", ((mapping_table *)a)->original, ((mapping_table *)b)->original, t);
-    scanf("%d", &t);
+int compare_original(const void *a, const void *b) {
+    //int t = strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
+    //fprintf(stderr, "%s %s %d\n", ((mapping_table *)a)->original, ((mapping_table *)b)->original, t);
+    //scanf("%d", &t);
+    mapping_table *aa, *bb;
+    aa = ((mapping_table *)a);
+    bb = ((mapping_table *)b);
+    fprintf(stderr, "Compareing: %s %s\n", aa->original, bb->original);
+    fprintf(stderr, "    &a=%p, &b=%p, \n  &aa=%p, &bb=%p, \n  &aa->original=%p, bb->original=%p\n", a, b, aa, bb, aa->original, bb->original);
     return strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
 }
 
-int compare_original(mapping_table *a, mapping_table *b) {
+int compare_original_2(mapping_table *a, mapping_table *b) {
     int t;
-    if (debug_counter < 7) {
+    if (debug_counter < 70000) {
         t = strcmp(a->original, b->original);
-        fprintf(stderr, "%s %s %x %x %d\n", a->original, b->original, a, b, t);
+//        fprintf(stderr, "%s %s %x %x %d\n", a->original, b->original, a, b, t);
         scanf("%d", &t);
         debug_counter++;
     }
@@ -110,29 +115,33 @@ mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
         //table_record->original = original;
         //table_record->corresponding = corresponding;
         table[i] = table_record;
-        if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
+        //if (i % 700 == 0) fprintf(stderr, "%d %s %s %p %p %p\n", i, table[i]->original, table[i]->corresponding, table[i]->original, table[i]->corresponding, table[i]);
 
     }
     fclose(f);
 
-    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
-
-    for (i = 0; i < sc2k_size; i += 700) {
+    //fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
+    fprintf(stderr, "=============== After Reading File ============\n");
+    for (i = 0; i < sc2k_size; i++) {
         fprintf(stderr, "%d ", i);
-        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+        fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
     }
 
-    fprintf(stderr, "---  %p %p %p %p %p\n", table, &table[0], table[0], table[1], table[2]);
-    
     // TODO the bug is because the usage of qsort!!!!!!!===============
     qsort(&table[0], table_size, sizeof(mapping_table*), compare_original);
 
-    fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
-
-    for (i = 0; i < sc2k_size; i += 700) {
+    fprintf(stderr, "=============== After QSORT ============\n");
+    for (i = 0; i < sc2k_size; i++) {
         fprintf(stderr, "%d ", i);
-        fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+        fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
     }
+
+    // fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
+
+    // for (i = 0; i < sc2k_size; i += 700) {
+    //     fprintf(stderr, "%d ", i);
+    //     fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
+    // }
 
     return table;
 }
@@ -182,11 +191,11 @@ int test_mapping_table_1() {
     //fprintf(stderr, "%p\n", sc2k);
     fprintf(stderr, "table %p, table[7] %p, table[7]->original %p\n", sc2k, sc2k[7], sc2k[7]->original);
     for (i = 0; i < sc2k_size; i++) {
-        if (i % 700 == 0) fprintf(stderr, "%d ", i);
-        if (i % 700 == 0) fprintf(stderr, "%p %p\n", sc2k[i]->original, sc2k[i]->corresponding);
+        //if (i % 700 == 0) fprintf(stderr, "%d ", i);
+        //if (i % 700 == 0) fprintf(stderr, "%p %p\n", sc2k[i]->original, sc2k[i]->corresponding);
         printf("%s %s %p %p %p\n", sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]->original, sc2k[i]->corresponding, sc2k[i]);
     }
-    result = BinarySearchTable(sc2k, sc2k[7]->original, 0, sc2k_size - 1);
+    result = BinarySearchTable(sc2k, sc2k[1]->original, 0, sc2k_size - 1);
     fprintf(stderr, "result = %d\n", result);
 
 }
