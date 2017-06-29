@@ -54,9 +54,11 @@ int compare_original(const void *a, const void *b) {
     //scanf("%d", &t);
     mapping_table *aa, *bb, **aaa, **bbb;
     aaa = ((mapping_table **)a);
-    aa = aaa[0];
+    //aa = aaa[0];
+    aa = *aaa;
     bbb = ((mapping_table **)b);
-    bb = bbb[0];
+    bb = *bbb;
+    //bb = bbb[0];
     fprintf(stderr, "Compareing: %s %s\n", aa->original, bb->original);
     fprintf(stderr, "    &a=%p, &b=%p, \n  &aa=%p, &bb=%p, \n  &aa->original=%p, bb->original=%p\n", a, b, aa, bb, aa->original, bb->original);
     return strcmp(((mapping_table *)a)->original, ((mapping_table *)b)->original);
