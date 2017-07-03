@@ -20,21 +20,18 @@
 //  For more information, bug reports, fixes, contact:
 //    Jilei Wang (wangjileiRUC@gmail.com)
 
+#define SC2K_FILENAME "data/simplec2kanji.txt"
+#define K2SC_FILENAME "data/kanji2simplec.txt"
+
+#define SC2K_SIZE 5006
+#define K2SC_SIZE 5787
 
 typedef struct mapping_table_record {
   char original[4];
   // at most 7 corresponding characters
   char corresponding[22];
+  struct mapping_table_record *next;
 } MAPTABREC;
-
-MAPTABREC **k2sc, **sc2k;
-
-char *sc2k_filename = "../data/simplec2kanji.txt";
-char *k2sc_filename = "../data/kanji2simplec.txt";
-
-int sc2k_size = 5006;
-int k2sc_size = 5787;
-
 
 
 /**
