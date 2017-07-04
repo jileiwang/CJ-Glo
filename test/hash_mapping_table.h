@@ -26,12 +26,21 @@
 #define SC2K_SIZE 5006
 #define K2SC_SIZE 5787
 
+// HASH_MAPPING_TABLE SIZE SEED HASHFN
+#define M_SIZE    10000
+#define M_SEED    1159241
+#define M_HASHFN  bitwisehash
+
 typedef struct mapping_table_record {
   char original[4];
   // at most 7 corresponding characters
   char corresponding[22];
   struct mapping_table_record *next;
 } MAPTABREC;
+
+
+/* Simple bitwise hash function */
+unsigned int bitwisehash(char *word, int tsize, unsigned int seed);
 
 
 /**

@@ -28,12 +28,102 @@
 
 
 
+
+
+/* Create hash table, initialise ptrs to NULL */
+HASHREC **
+inithashtable()
+{
+    int     i;
+    HASHREC     **ht;
+
+    ht = (HASHREC **) malloc( sizeof(HASHREC *) * TSIZE );
+
+    for( i=0 ; i<TSIZE ; i++ )
+    ht[i] = (HASHREC *) NULL;
+
+    return(ht);
+}
+
+
+/* Search hash table for given string, return record if found, else NULL */
+HASHREC *
+hashsearch(HASHREC **ht, char *w)
+{
+    HASHREC *htmp, *hprv;
+    unsigned int hval = HASHFN(w, TSIZE, SEED);
+
+    for( hprv = NULL, htmp=ht[hval]
+        ; htmp != NULL && scmp(htmp->word, w) != 0
+        ; hprv = htmp, htmp = htmp->next )
+    {
+    ;
+    }
+
+    if( hprv!=NULL ) /* move to front on access */
+    {
+    hprv->next = htmp->next;
+    htmp->next = ht[hval];
+    ht[hval] = htmp;
+    }
+
+    return(htmp);
+}
+
+
+/* Search hash table for given string, insert if not found */
+void
+hashinsert(HASHREC **ht, char *w)
+{
+    HASHREC *htmp, *hprv;
+    unsigned int hval = HASHFN(w, TSIZE, SEED);
+
+    for( hprv = NULL, htmp=ht[hval]
+        ; htmp != NULL && scmp(htmp->word, w) != 0
+        ; hprv = htmp, htmp = htmp->next )
+    {
+    ;
+    }
+
+    if( htmp==NULL )
+    {
+    htmp = (HASHREC *) malloc( sizeof(HASHREC) );
+    htmp->word = (char *) malloc( strlen(w) + 1 );
+    strcpy(htmp->word, w);
+    htmp->next = NULL;
+    if( hprv==NULL )
+        ht[hval] = htmp;
+    else
+        hprv->next = htmp;
+
+    /* new records are not moved to front */
+    }
+    else
+    {
+    if( hprv!=NULL ) /* move to front on access */
+    {
+        hprv->next = htmp->next;
+        htmp->next = ht[hval];
+        ht[hval] = htmp;
+    }
+    }
+
+    return;
+}
+
+
+
+
 /**
  * Compare 2 mapping table record, used in qsort function.
- * notice the type of a and b are (mapping_table **)
+ * notice the type of a and b are (MAPTABREC **)
  */
 int compare_original(const void *a, const void *b) {
-    return strcmp((*(mapping_table **)a)->original, (*(mapping_table **)b)->original);
+    return strcmp((*(MAPTABREC **)a)->original, (*(MAPTABREC **)b)->original);
+}
+
+void insert_mapping_table_record(MAPTABREC **table, MAPTABREC *record) {
+
 }
 
 /**
@@ -55,46 +145,23 @@ int get_characters(char *word, FILE *fin) {
 /**
  * Read mapping table from file, and sort it
  */
-mapping_table ** ReadMappingTableFromFile(char *filename, int table_size) {
+MAPTABREC ** ReadMappingTableFromFile(char *filename, int table_size) {
     int i;
     FILE *f;
     char *original, *corresponding;
-    mapping_table *table_record;
-    mapping_table **table;
-    table = (mapping_table **)malloc( sizeof(mapping_table *) * table_size );
+    MAPTABREC *record;
+    MAPTABREC **table;
+    table = (MAPTABREC **)malloc( sizeof(MAPTABREC *) * HASH_MAPPING_TABLE_SIZE );
 
     f = fopen(filename, "rb");
     for (i = 0; i < table_size; i++) {      
-        table[i] = (mapping_table *)malloc( sizeof(mapping_table) );
-        get_characters(table[i]->original, f);
-        get_characters(table[i]->corresponding, f);
+        record = (MAPTABREC *)malloc( sizeof(MAPTABREC) );
+        get_characters(record->original, f);
+        get_characters(record->corresponding, f);
+        insert_mapping_table_record(record);
     }
     fclose(f);
 
-    //fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
-    // fprintf(stderr, "=============== After Reading File ============\n");
-    // fprintf(stderr, "&table=%p\n", table);
-    // for (i = 0; i < sc2k_size; i++) {
-    //     fprintf(stderr, "%d ", i);
-    //     fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
-    // }
-
-    // TODO the bug is because the usage of qsort!!!!!!!===============
-    qsort(&table[0], table_size, sizeof(mapping_table*), compare_original);
-
-    // fprintf(stderr, "=============== After QSORT ============\n");
-    // fprintf(stderr, "&table=%p\n", table);
-    // for (i = 0; i < sc2k_size; i++) {
-    //     fprintf(stderr, "%d ", i);
-    //     fprintf(stderr, "table[i]=%s, &table[i]=%p, &table[i]->original=%p\n", table[i]->original, table[i], table[i]->original);
-    // }
-
-    // fprintf(stderr, "ReadMappingTableFromFile - table %p, table[7] %p, table[7]->original %p\n", table, table[7], table[7]->original);
-
-    // for (i = 0; i < sc2k_size; i += 700) {
-    //     fprintf(stderr, "%d ", i);
-    //     fprintf(stderr, "%p %p\n", table[i]->original, table[i]->corresponding);//, table[i]->original, table[i]->corresponding);
-    // }
 
     return table;
 }
@@ -110,7 +177,7 @@ void ReadMappingTable() {
 /**
  * 
  */
-int BinarySearchTable(mapping_table **table, char *ch, int left, int right) {
+int BinarySearchTable(MAPTABREC **table, char *ch, int left, int right) {
     int mid, cmp;
     if (right < left) {
         return -1;
