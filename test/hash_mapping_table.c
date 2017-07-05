@@ -26,31 +26,20 @@
 #include <string.h>
 #include <math.h>
 
-
-
-
-
 /* Create hash table, initialise ptrs to NULL */
-HASHREC **
-inithashtable()
-{
-    int     i;
-    HASHREC     **ht;
-
-    ht = (HASHREC **) malloc( sizeof(HASHREC *) * TSIZE );
-
-    for( i=0 ; i<TSIZE ; i++ )
-    ht[i] = (HASHREC *) NULL;
-
+MAPTABREC ** init_hash_mapping_table() {
+    int i;
+    MAPTABREC **ht;
+    ht = (MAPTABREC **) malloc( sizeof(MAPTABREC *) * TSIZE );
+    for(i = 0; i < TSIZE; i++) {
+        ht[i] = (MAPTABREC *) NULL;
+    }
     return(ht);
 }
 
-
 /* Search hash table for given string, return record if found, else NULL */
-HASHREC *
-hashsearch(HASHREC **ht, char *w)
-{
-    HASHREC *htmp, *hprv;
+MAPTABREC * hash_search_mapping_table(MAPTABREC **ht, char *w) {
+    MAPTABREC *htmp, *hprv;
     unsigned int hval = HASHFN(w, TSIZE, SEED);
 
     for( hprv = NULL, htmp=ht[hval]
@@ -60,11 +49,11 @@ hashsearch(HASHREC **ht, char *w)
     ;
     }
 
-    if( hprv!=NULL ) /* move to front on access */
-    {
-    hprv->next = htmp->next;
-    htmp->next = ht[hval];
-    ht[hval] = htmp;
+    if( hprv!=NULL ) {
+        /* move to front on access */
+        hprv->next = htmp->next;
+        htmp->next = ht[hval];
+        ht[hval] = htmp;
     }
 
     return(htmp);
@@ -72,42 +61,39 @@ hashsearch(HASHREC **ht, char *w)
 
 
 /* Search hash table for given string, insert if not found */
-void
-hashinsert(HASHREC **ht, char *w)
-{
-    HASHREC *htmp, *hprv;
+void hash_insert_mapping_table(MAPTABREC **ht, char *original, char *corresponding) {
+    MAPTABREC *htmp, *hprv;
     unsigned int hval = HASHFN(w, TSIZE, SEED);
 
     for( hprv = NULL, htmp=ht[hval]
         ; htmp != NULL && scmp(htmp->word, w) != 0
-        ; hprv = htmp, htmp = htmp->next )
+        ; hprv = htmp, htmp = htmp->next ) 
     {
     ;
     }
 
-    if( htmp==NULL )
-    {
-    htmp = (HASHREC *) malloc( sizeof(HASHREC) );
-    htmp->word = (char *) malloc( strlen(w) + 1 );
-    strcpy(htmp->word, w);
-    htmp->next = NULL;
-    if( hprv==NULL )
-        ht[hval] = htmp;
-    else
-        hprv->next = htmp;
-
-    /* new records are not moved to front */
+    if(htmp == NULL) {
+        htmp = (MAPTABREC *) malloc( sizeof(MAPTABREC) );
+        //htmp->word = (char *) malloc( strlen(w) + 1 );
+        strcpy(htmp->original, original);
+        strcpy(htmp->corresponding, corresponding);
+        htmp->next = NULL;
+        if(hprv == NULL) {
+            ht[hval] = htmp;
+        }
+        else {
+            hprv->next = htmp;
+        }
+        /* new records are not moved to front */
     }
-    else
-    {
-    if( hprv!=NULL ) /* move to front on access */
-    {
-        hprv->next = htmp->next;
-        htmp->next = ht[hval];
-        ht[hval] = htmp;
+    else {
+        if(hprv != NULL) {
+            /* move to front on access */
+            hprv->next = htmp->next;
+            htmp->next = ht[hval];
+            ht[hval] = htmp;
+        }
     }
-    }
-
     return;
 }
 
@@ -120,10 +106,6 @@ hashinsert(HASHREC **ht, char *w)
  */
 int compare_original(const void *a, const void *b) {
     return strcmp((*(MAPTABREC **)a)->original, (*(MAPTABREC **)b)->original);
-}
-
-void insert_mapping_table_record(MAPTABREC **table, MAPTABREC *record) {
-
 }
 
 /**
@@ -145,20 +127,20 @@ int get_characters(char *word, FILE *fin) {
 /**
  * Read mapping table from file, and sort it
  */
-MAPTABREC ** ReadMappingTableFromFile(char *filename, int table_size) {
+MAPTABREC ** load_mapping_table_from_file(char *filename, int table_size) {
     int i;
     FILE *f;
-    char *original, *corresponding;
-    MAPTABREC *record;
+    char original[4], corresponding[22];
+    // MAPTABREC *record;
     MAPTABREC **table;
-    table = (MAPTABREC **)malloc( sizeof(MAPTABREC *) * HASH_MAPPING_TABLE_SIZE );
+    table = init_hash_mapping_table();
 
     f = fopen(filename, "rb");
     for (i = 0; i < table_size; i++) {      
-        record = (MAPTABREC *)malloc( sizeof(MAPTABREC) );
-        get_characters(record->original, f);
-        get_characters(record->corresponding, f);
-        insert_mapping_table_record(record);
+        // record = (MAPTABREC *)malloc( sizeof(MAPTABREC) );
+        get_characters(original, f);
+        get_characters(corresponding, f);
+        hash_insert_mapping_table(table, original, corresponding);
     }
     fclose(f);
 
@@ -169,33 +151,9 @@ MAPTABREC ** ReadMappingTableFromFile(char *filename, int table_size) {
 /**
  * Read 2 mapping tables
  */
-void ReadMappingTable() {
-    sc2k = ReadMappingTableFromFile(sc2k_filename, sc2k_size);
-    k2sc = ReadMappingTableFromFile(k2sc_filename, k2sc_size);
-}
-
-/**
- * 
- */
-int BinarySearchTable(MAPTABREC **table, char *ch, int left, int right) {
-    int mid, cmp;
-    if (right < left) {
-        return -1;
-    }
-    mid = left + (right - left) / 2;
-    fprintf(stderr, "mid = %d, %s\n", mid, table[mid]->original);
-    
-    cmp = strcmp(table[mid]->original, ch);
-
-    if (cmp == 0) {
-        return mid;
-    }
-    else if (cmp > 0) {
-        return BinarySearchTable(table, ch, left, mid - 1);
-    }
-    else {
-        return BinarySearchTable(table, ch, mid + 1, right);
-    }
+void load_mapping_tables() {
+    sc2k = load_one_mapping_table(SC2K_FILENAME, SC2K_SIZE);
+    k2sc = load_one_mapping_table(K2SC_FILENAME, K2SC_SIZE);
 }
 
 void test_mapping_table_1(index) {

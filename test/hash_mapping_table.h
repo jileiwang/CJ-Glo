@@ -42,7 +42,6 @@ typedef struct mapping_table_record {
 /* Simple bitwise hash function */
 unsigned int bitwisehash(char *word, int tsize, unsigned int seed);
 
-
 /**
  * Compare 2 mapping table record, used in qsort function.
  * notice the type of a and b are (mapping_table **)
@@ -55,13 +54,8 @@ int compare_original(const void *a, const void *b);
 int get_characters(char *word, FILE *fin);
 
 /**
- * Read mapping table from file, and sort it
+ * Read 2 mapping tables
  */
-MAPTABREC ** ReadMappingTableFromFile(char *filename, int table_size);
-
-/**
- * Read 2 mapping tables from file
- */
-void ReadMappingTable();
+void load_mapping_tables();
 
 
