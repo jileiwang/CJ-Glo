@@ -42,16 +42,14 @@ typedef struct mapping_table_record {
 /* Simple bitwise hash function */
 unsigned int bitwisehash(char *word, int tsize, unsigned int seed);
 
+/* Efficient string comparison */
+int scmp( char *s1, char *s2 );
+
 /**
  * Compare 2 mapping table record, used in qsort function.
  * notice the type of a and b are (mapping_table **)
  */
 int compare_original(const void *a, const void *b);
-
-/**
- * Read one or several Kanji or Hanzi from text file
- */
-int get_characters(char *word, FILE *fin);
 
 /**
  * Read 2 mapping tables

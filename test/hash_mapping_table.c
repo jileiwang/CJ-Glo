@@ -25,13 +25,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "hash_mapping_table.h"
+
+MAPTABREC **k2sc, **sc2k;
 
 /* Create hash table, initialise ptrs to NULL */
 MAPTABREC ** init_hash_mapping_table() {
     int i;
     MAPTABREC **ht;
-    ht = (MAPTABREC **) malloc( sizeof(MAPTABREC *) * TSIZE );
-    for(i = 0; i < TSIZE; i++) {
+    ht = (MAPTABREC **) malloc( sizeof(MAPTABREC *) * M_SIZE );
+    for(i = 0; i < M_SIZE; i++) {
         ht[i] = (MAPTABREC *) NULL;
     }
     return(ht);
@@ -40,10 +43,10 @@ MAPTABREC ** init_hash_mapping_table() {
 /* Search hash table for given string, return record if found, else NULL */
 MAPTABREC * hash_search_mapping_table(MAPTABREC **ht, char *w) {
     MAPTABREC *htmp, *hprv;
-    unsigned int hval = HASHFN(w, TSIZE, SEED);
+    unsigned int hval = M_HASHFN(w, M_SIZE, M_SEED);
 
     for( hprv = NULL, htmp=ht[hval]
-        ; htmp != NULL && scmp(htmp->word, w) != 0
+        ; htmp != NULL && scmp(htmp->original, w) != 0
         ; hprv = htmp, htmp = htmp->next )
     {
     ;
@@ -63,10 +66,10 @@ MAPTABREC * hash_search_mapping_table(MAPTABREC **ht, char *w) {
 /* Search hash table for given string, insert if not found */
 void hash_insert_mapping_table(MAPTABREC **ht, char *original, char *corresponding) {
     MAPTABREC *htmp, *hprv;
-    unsigned int hval = HASHFN(w, TSIZE, SEED);
+    unsigned int hval = M_HASHFN(original, M_SIZE, M_SEED);
 
     for( hprv = NULL, htmp=ht[hval]
-        ; htmp != NULL && scmp(htmp->word, w) != 0
+        ; htmp != NULL && scmp(htmp->original, original) != 0
         ; hprv = htmp, htmp = htmp->next ) 
     {
     ;
@@ -97,9 +100,6 @@ void hash_insert_mapping_table(MAPTABREC **ht, char *original, char *correspondi
     return;
 }
 
-
-
-
 /**
  * Compare 2 mapping table record, used in qsort function.
  * notice the type of a and b are (MAPTABREC **)
@@ -127,7 +127,7 @@ int get_characters(char *word, FILE *fin) {
 /**
  * Read mapping table from file, and sort it
  */
-MAPTABREC ** load_mapping_table_from_file(char *filename, int table_size) {
+MAPTABREC ** load_one_mapping_table(char *filename, int table_size) {
     int i;
     FILE *f;
     char original[4], corresponding[22];
@@ -156,37 +156,37 @@ void load_mapping_tables() {
     k2sc = load_one_mapping_table(K2SC_FILENAME, K2SC_SIZE);
 }
 
-void test_mapping_table_1(index) {
-    int result;
+// void test_mapping_table_1(index) {
+//     int result;
 
-    result = BinarySearchTable(sc2k, sc2k[index]->original, 0, sc2k_size - 1);
-    fprintf(stderr, "result = %d\n", result);
+//     result = BinarySearchTable(sc2k, sc2k[index]->original, 0, sc2k_size - 1);
+//     fprintf(stderr, "result = %d\n", result);
 
-    result = BinarySearchTable(k2sc, k2sc[index]->original, 0, k2sc_size - 1);
-    fprintf(stderr, "result = %d\n", result);
-}
+//     result = BinarySearchTable(k2sc, k2sc[index]->original, 0, k2sc_size - 1);
+//     fprintf(stderr, "result = %d\n", result);
+// }
 
-void test_mapping_table_2() {
-    int result;
+// void test_mapping_table_2() {
+//     int result;
 
-    result = BinarySearchTable(sc2k, sc2k[sc2k_size - 1]->original, 0, sc2k_size - 1);
-    fprintf(stderr, "result = %d (%d)\n", result, sc2k_size - 1);
+//     result = BinarySearchTable(sc2k, sc2k[sc2k_size - 1]->original, 0, sc2k_size - 1);
+//     fprintf(stderr, "result = %d (%d)\n", result, sc2k_size - 1);
 
-    result = BinarySearchTable(k2sc, k2sc[k2sc_size - 1]->original, 0, k2sc_size - 1);
-    fprintf(stderr, "result = %d (%d)\n", result, k2sc_size - 1);
-}
+//     result = BinarySearchTable(k2sc, k2sc[k2sc_size - 1]->original, 0, k2sc_size - 1);
+//     fprintf(stderr, "result = %d (%d)\n", result, k2sc_size - 1);
+// }
 
-void test() {
-    test_mapping_table_1(0);
-    test_mapping_table_1(7);
-    test_mapping_table_1(77);
-    test_mapping_table_1(777);
-    test_mapping_table_1(5000);
-    test_mapping_table_2();
-}
+// void test() {
+//     test_mapping_table_1(0);
+//     test_mapping_table_1(7);
+//     test_mapping_table_1(77);
+//     test_mapping_table_1(777);
+//     test_mapping_table_1(5000);
+//     test_mapping_table_2();
+// }
 
 int main(int argc, char **argv) {
-    ReadMappingTable();
-    test();
+    load_mapping_tables();
+    // test();
 }
 
