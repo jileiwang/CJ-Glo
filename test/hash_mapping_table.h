@@ -46,12 +46,6 @@ unsigned int bitwisehash(char *word, int tsize, unsigned int seed);
 int scmp( char *s1, char *s2 );
 
 /**
- * Compare 2 mapping table record, used in qsort function.
- * notice the type of a and b are (mapping_table **)
- */
-int compare_original(const void *a, const void *b);
-
-/**
  * Read 2 mapping tables
  */
 void load_mapping_tables();
