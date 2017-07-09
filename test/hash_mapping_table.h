@@ -50,4 +50,7 @@ int scmp( char *s1, char *s2 );
  */
 void load_mapping_tables();
 
-
+/**
+ * return 1 if the 2 words has a common character.
+ */
+int has_common_character(char *word1, char *word2, int lang_id);
