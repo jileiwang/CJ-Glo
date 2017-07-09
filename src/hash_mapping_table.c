@@ -144,13 +144,14 @@ void load_mapping_tables() {
     k2sc = load_one_mapping_table(K2SC_FILENAME, K2SC_SIZE);
 }
 
-
+/**
+ * Compare is in word2 there is some characters in corresponding,
+ * where corresponding is the characters mapped from a character
+ */
 int compare_characters(char *corresponding, char *word2) {
   int len1, len2, i, j;
-  fprintf(stderr, "compare_characters: %s %s\n", corresponding, word2);
   len1 = strlen(corresponding);
   len2 = strlen(word2);
-  fprintf(stderr, "compare_characters: %d %d\n", len1, len2);
   for (i = 0; i < len1; i+= 3) {
     for (j = 0; j < len2; j += 3) {
       if (word2[j] == corresponding[i] && word2[j+1] == corresponding[i+1] && word2[j+2] == corresponding[i+2]) {
@@ -194,9 +195,7 @@ int has_common_character(char *word1, char *word2, int lang_id) {
     for (j = 0; j < 3; j++) {
       source_ch[j] = word1[i + j];
     }
-    fprintf(stderr, "for : %s\n", source_ch);
     ret = hash_search_mapping_table(table, source_ch);
-    fprintf(stderr, "for : %p %s %s\n", ret, ret->original, ret->corresponding);
     if (ret) {
         if (compare_characters(ret->corresponding, word2) > 0) {
             return 1;
