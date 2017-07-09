@@ -194,12 +194,6 @@ int has_common_character(char *word1, char *word2, int lang_id) {
     for (j = 0; j < 3; j++) {
       source_ch[j] = word1[i + j];
     }
-    // pos = bisearch_table(table, source_ch, 0, table_size - 1);
-    // if (pos >= 0) {
-    //     if (compare_characters(table[pos]->corresponding, word2) > 0) {
-    //         return 1;
-    //     }
-    // }
     fprintf(stderr, "for : %s\n", source_ch);
     ret = hash_search_mapping_table(table, source_ch);
     fprintf(stderr, "for : %p %s %s\n", ret, ret->original, ret->corresponding);
