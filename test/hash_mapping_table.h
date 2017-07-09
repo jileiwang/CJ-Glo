@@ -20,8 +20,8 @@
 //  For more information, bug reports, fixes, contact:
 //    Jilei Wang (wangjileiRUC@gmail.com)
 
-#define SC2K_FILENAME "data/simplec2kanji.txt"
-#define K2SC_FILENAME "data/kanji2simplec.txt"
+#define SC2K_FILENAME "../data/simplec2kanji.txt"
+#define K2SC_FILENAME "../data/kanji2simplec.txt"
 
 #define SC2K_SIZE 5006
 #define K2SC_SIZE 5787

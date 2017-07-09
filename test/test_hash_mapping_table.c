@@ -34,6 +34,7 @@ void test_mapping_table_1() {
 
 int main(int argc, char **argv) {
     load_mapping_tables();
+    fprintf(stderr, "Finish reading from file.\n");
     // test();
     test_mapping_table_1();
 }

@@ -62,7 +62,6 @@ MAPTABREC * hash_search_mapping_table(MAPTABREC **ht, char *w) {
     return(htmp);
 }
 
-
 /* Search hash table for given string, insert if not found */
 void hash_insert_mapping_table(MAPTABREC **ht, char *original, char *corresponding) {
     MAPTABREC *htmp, *hprv;
@@ -126,7 +125,7 @@ MAPTABREC ** load_one_mapping_table(char *filename, int table_size) {
     // MAPTABREC *record;
     MAPTABREC **table;
     table = init_hash_mapping_table();
-
+    fprintf(stderr, "start reading %s\n", filename);
     f = fopen(filename, "rb");
     for (i = 0; i < table_size; i++) {      
         // record = (MAPTABREC *)malloc( sizeof(MAPTABREC) );
@@ -151,8 +150,10 @@ void load_mapping_tables() {
 
 int compare_characters(char *corresponding, char *word2) {
   int len1, len2, i, j;
+  fprintf(stderr, "compare_characters: %s %s\n", corresponding, word2);
   len1 = strlen(corresponding);
   len2 = strlen(word2);
+  fprintf(stderr, "compare_characters: %d %d\n", len1, len2);
   for (i = 0; i < len1; i+= 3) {
     for (j = 0; j < len2; j += 3) {
       if (word2[j] == corresponding[i] && word2[j+1] == corresponding[i+1] && word2[j+2] == corresponding[i+2]) {
@@ -170,7 +171,7 @@ int compare_characters(char *corresponding, char *word2) {
 int has_common_character(char *word1, char *word2, int lang_id) {
   char source_ch[4], target_ch[4];
   int len1, len2;
-  int i, j, pos, table_size;
+  int i, j, table_size;
   int parallel = 1 - lang_id;
   MAPTABREC **table;
   MAPTABREC *ret;
@@ -189,7 +190,7 @@ int has_common_character(char *word1, char *word2, int lang_id) {
   if (len1 % 3 != 0 || len2 % 3 != 0) {
     return 0;
   }
-  // if (verbose > 2) fprintf(stderr, "CJWordMatch : %s - %s - %d\n", word1, word2, lang_id);
+  fprintf(stderr, "has_common_character : %s - %s - %d\n", word1, word2, lang_id);
   source_ch[3] = 0;
   target_ch[3] = 0;
   for (i = 0; i < len1; i += 3) {
@@ -203,9 +204,11 @@ int has_common_character(char *word1, char *word2, int lang_id) {
     //         return 1;
     //     }
     // }
+    fprintf(stderr, "for : %s\n", source_ch);
     ret = hash_search_mapping_table(table, source_ch);
+    fprintf(stderr, "for : %p %s %s\n", ret, ret->original, ret->corresponding);
     if (ret) {
-        if (compare_characters(table[pos]->corresponding, word2) > 0) {
+        if (compare_characters(ret->corresponding, word2) > 0) {
             return 1;
         }
     }
