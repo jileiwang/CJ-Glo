@@ -121,13 +121,11 @@ MAPTABREC ** load_one_mapping_table(char *filename, int table_size) {
     int i;
     FILE *f;
     char original[4], corresponding[22];
-    // MAPTABREC *record;
     MAPTABREC **table;
     table = init_hash_mapping_table();
     fprintf(stderr, "start reading %s\n", filename);
     f = fopen(filename, "rb");
-    for (i = 0; i < table_size; i++) {      
-        // record = (MAPTABREC *)malloc( sizeof(MAPTABREC) );
+    for (i = 0; i < table_size; i++) {
         get_characters(original, f);
         get_characters(corresponding, f);
         hash_insert_mapping_table(table, original, corresponding);
@@ -156,7 +154,6 @@ int compare_characters(char *corresponding, char *word2) {
   for (i = 0; i < len1; i+= 3) {
     for (j = 0; j < len2; j += 3) {
       if (word2[j] == corresponding[i] && word2[j+1] == corresponding[i+1] && word2[j+2] == corresponding[i+2]) {
-        //if (verbose > 2) fprintf(stderr, "source_ch %s, target_ch %s, j %d, word2 %s\n", source_ch, target_ch, j, word2);
         return 1;
       }
     }
