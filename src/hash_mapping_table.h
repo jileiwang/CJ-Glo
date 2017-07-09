@@ -1,5 +1,4 @@
-//  Tool to calculate word-word cooccurrence statistics for sentence aligned
-//  corpus of 2 languages.
+//  The mapping table from Kanji to Hanzi, or reverse.
 //
 //  Copyright (c) 2014 The Board of Trustees of
 //  The Leland Stanford Junior University. All Rights Reserved.
@@ -32,10 +31,10 @@
 #define M_HASHFN  bitwisehash
 
 typedef struct mapping_table_record {
-  char original[4];
-  // at most 7 corresponding characters
-  char corresponding[22];
-  struct mapping_table_record *next;
+    char original[4];
+    // at most 7 corresponding characters
+    char corresponding[22];
+    struct mapping_table_record *next;
 } MAPTABREC;
 
 

@@ -1,5 +1,4 @@
-//  Tool to calculate word-word cooccurrence statistics for sentence aligned
-//  corpus of 2 languages.
+//  The mapping table from Kanji to Hanzi, or reverse.
 //
 //  Copyright (c) 2014 The Board of Trustees of
 //  The Leland Stanford Junior University. All Rights Reserved.
@@ -28,9 +27,9 @@
 #define K2SC_SIZE 5787
 
 typedef struct mapping_table_record {
-  char original[4];
-  // at most 7 corresponding characters
-  char corresponding[22];
+    char original[4];
+    // at most 7 corresponding characters
+    char corresponding[22];
 } MAPTABREC;
 
 /**

@@ -1,5 +1,4 @@
-//  Tool to calculate word-word cooccurrence statistics for sentence aligned
-//  corpus of 2 languages.
+//  The mapping table from Kanji to Hanzi, or reverse.
 //
 //  Copyright (c) 2014 The Board of Trustees of
 //  The Leland Stanford Junior University. All Rights Reserved.
@@ -149,61 +148,58 @@ void load_mapping_tables() {
  * where corresponding is the characters mapped from a character
  */
 int compare_characters(char *corresponding, char *word2) {
-  int len1, len2, i, j;
-  len1 = strlen(corresponding);
-  len2 = strlen(word2);
-  for (i = 0; i < len1; i+= 3) {
-    for (j = 0; j < len2; j += 3) {
-      if (word2[j] == corresponding[i] && word2[j+1] == corresponding[i+1] && word2[j+2] == corresponding[i+2]) {
-        return 1;
-      }
+    int len1, len2, i, j;
+    len1 = strlen(corresponding);
+    len2 = strlen(word2);
+    for (i = 0; i < len1; i+= 3) {
+        for (j = 0; j < len2; j += 3) {
+            if (word2[j] == corresponding[i] && word2[j+1] == corresponding[i+1] && word2[j+2] == corresponding[i+2]) {
+                return 1;
+            }
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 /**
  * return 1 if the 2 words has a common character.
  */
 int has_common_character(char *word1, char *word2, int lang_id) {
-  char source_ch[4], target_ch[4];
-  int len1, len2;
-  int i, j, table_size;
-  int parallel = 1 - lang_id;
-  MAPTABREC **table;
-  MAPTABREC *ret;
+    char source_ch[4], target_ch[4];
+    int len1, len2;
+    int i, j, table_size;
+    int parallel = 1 - lang_id;
+    MAPTABREC **table;
+    MAPTABREC *ret;
 
-  if (lang_id == 1) {
-    table = sc2k;
-    table_size = SC2K_SIZE;
-  }
-  else {
-    table = k2sc;
-    table_size = K2SC_SIZE;
-  }
-
-  len1 = strlen(word1);
-  len2 = strlen(word2);
-  if (len1 % 3 != 0 || len2 % 3 != 0) {
-    return 0;
-  }
-  fprintf(stderr, "has_common_character : %s - %s - %d\n", word1, word2, lang_id);
-  source_ch[3] = 0;
-  target_ch[3] = 0;
-  for (i = 0; i < len1; i += 3) {
-    // get a character from word1
-    for (j = 0; j < 3; j++) {
-      source_ch[j] = word1[i + j];
+    if (lang_id == 1) {
+        table = sc2k;
+        table_size = SC2K_SIZE;
     }
-    ret = hash_search_mapping_table(table, source_ch);
-    if (ret) {
-        if (compare_characters(ret->corresponding, word2) > 0) {
-            return 1;
+    else {
+        table = k2sc;
+        table_size = K2SC_SIZE;
+    }
+
+    len1 = strlen(word1);
+    len2 = strlen(word2);
+    if (len1 % 3 != 0 || len2 % 3 != 0) {
+        return 0;
+    }
+
+    source_ch[3] = 0;
+    target_ch[3] = 0;
+    for (i = 0; i < len1; i += 3) {
+        // get a character from word1
+        for (j = 0; j < 3; j++) {
+            source_ch[j] = word1[i + j];
+        }
+        ret = hash_search_mapping_table(table, source_ch);
+        if (ret) {
+            if (compare_characters(ret->corresponding, word2) > 0) {
+                return 1;
+            }
         }
     }
-  }
-  return 0;
+    return 0;
 }
-
-
-
