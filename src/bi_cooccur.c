@@ -25,7 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "bisearch_mapping_table.h"
+
+// #include "bisearch_mapping_table.h"
+#include "hash_mapping_table.h"
 
 #define TSIZE 1048576
 #define SEED 1159241
