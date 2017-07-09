@@ -76,7 +76,6 @@ void hash_insert_mapping_table(MAPTABREC **ht, char *original, char *correspondi
 
     if(htmp == NULL) {
         htmp = (MAPTABREC *) malloc( sizeof(MAPTABREC) );
-        //htmp->word = (char *) malloc( strlen(w) + 1 );
         strcpy(htmp->original, original);
         strcpy(htmp->corresponding, corresponding);
         htmp->next = NULL;
