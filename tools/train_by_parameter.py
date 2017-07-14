@@ -38,13 +38,18 @@ def run_by_list(sentence_rate_list, cjglo_list):
             co_output_filename = "exp_sr_" + sentence_rate + "_cj_" + cjglo + ".co"
             co_cmd = fill_bi_cooccur_command(sentence_rate, cjglo, co_output_filename)
             print co_cmd
+            os.popen(co_cmd)
+
             shuf_output_filename = "exp_sr_" + sentence_rate + "_cj_" + cjglo + ".shuf"
             shuf_cmd = fill_shuffle_command(co_output_filename, shuf_output_filename)
             print shuf_cmd
+            os.popen(shuf_cmd)
+            
             glove_output_filename = "exp_sr_" + sentence_rate + "_cj_" + cjglo + ".vec"
             glove_cmd = fill_glove_command(shuf_output_filename, glove_output_filename)
             print glove_cmd
-            
+            os.popen(glove_cmd)
+
 def main():
     sentence_rate_list = ["1"]
     cjglo_list = ["0"]
