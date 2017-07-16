@@ -4,15 +4,18 @@
 
 import os
 
+vocab_file = "output/vocab.cj_001"
+vector_size = "50"
+
 def fill_glove_command(input_filename, output_filename):
     cmd = "build/glove -save-file " + output_filename
     cmd += " -threads 8"
     cmd += " -input-file " + input_filename
     cmd += " -x-max 10"
     cmd += " -iter 15"
-    cmd += " -vector-size 50"
+    cmd += " -vector-size " + vector_size
     cmd += " -binary 2"
-    cmd += " -vocab-file output/vocab.cj_001"
+    cmd += " -vocab-file " + vocab_file
     cmd += " -verbose 0"
     return cmd
 
@@ -26,7 +29,7 @@ def fill_bi_cooccur_command(sentence_rate, cjglo, cjglo_rate, output_filename):
     cmd = "build/bi_cooccur -verbose 0"
     cmd += " -corpus-file-1 data/train.zh_parsed"
     cmd += " -corpus-file-2 data/train.ja_parsed"
-    cmd += " -vocab-file output/vocab.cj_001"
+    cmd += " -vocab-file " + vocab_file
     cmd += " -sentence-rate " + sentence_rate
     cmd += " -cjglo " + cjglo
     cmd += " -cjglo-rate " + cjglo_rate
