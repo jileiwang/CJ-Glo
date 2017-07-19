@@ -69,7 +69,7 @@ def run_experiment_by_list(sentence_rate_list, cjglo_rate_list):
 def main():
     sentence_rate_list = ["0.7"] # [str(0.1 * x) for x in xrange(1, 11)]
     cjglo_rate_list = ["0.7"] # [str(0.1 * x) for x in xrange(1, 11)]
-    # run_control_by_list(sentence_rate_list)
+    run_control_by_list(sentence_rate_list)
     run_experiment_by_list(sentence_rate_list, cjglo_rate_list)
 
 
