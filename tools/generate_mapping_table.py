@@ -124,10 +124,94 @@ def simple_chinese_2_kanji():
     print "A Simple Chinese Character is mapping to X Kanji Character:"
     print dic2
 
+def find_same_shape_character():
+    """
+        The shape of a common character in 3 categories are sometimes the same, sometimes not.
+        Only consider lines without "N/A", there are 5 patterns:
+        Type   Kanji           Tranditional    Simple
+        0      A               A               A
+        1      A               A               B
+        2      A               B               A
+        3      A               B               B
+        4      A               B               C
+
+        This function counts these types, and save to corresponding files.
+    """
+    fin = open('data/kanji_mapping_table_clean.txt', 'r')
+    dic = defaultdict(list)
+
+    type_set = [[] for _ in xrange(6)] # Type 5 is 'N/A'
+
+    for line in fin:
+        triple = line.split()
+        if 'N/A' in triple:
+            type_set[5].append(line)
+            continue
+        kanji = triple[0]
+        tranditional = triple[1]
+        simple = triple[2]
+        for c_kanji in kanji.split(','):
+            for c_tranditional in tranditional.split(','):
+                for c_simple in simple.split(','):
+                    if c_kanji == c_tranditional and c_kanji == c_simple:
+                        type_set[0].append(line)
+                    elif c_kanji == c_tranditional:
+                        type_set[1].append(line)
+                    elif c_kanji == c_simple:
+                        type_set[2].append(line)
+                    elif c_tranditional == c_simple:
+                        type_set[3].append(line)
+                    else:
+                        type_set[4].append(line)
+
+    for i in xrange(6):
+        fout = open("output/mapping_table/character_shape_type_%i.txt" % i, "w")
+        for line in type_set[i]:
+            fout.write(line)
+        fout.close()
+
+def find_same_shape_character_single():
+    """
+        Same with find_same_shape_character(), but only deal with line that in each type
+        there is only 1 character. 
+    """
+    fin = open('data/kanji_mapping_table_clean.txt', 'r')
+    dic = defaultdict(list)
+
+    type_set = [[] for _ in xrange(6)] # Type 5 is line with ','
+
+    for line in fin:
+        if ',' in line:
+            type_set[5].append(line)
+            continue
+        triple = line.split()
+        if 'N/A' in triple:
+            continue
+        c_kanji = triple[0]
+        c_tranditional = triple[1]
+        c_simple = triple[2]
+        if c_kanji == c_tranditional and c_kanji == c_simple:
+            type_set[0].append(line)
+        elif c_kanji == c_tranditional:
+            type_set[1].append(line)
+        elif c_kanji == c_simple:
+            type_set[2].append(line)
+        elif c_tranditional == c_simple:
+            type_set[3].append(line)
+        else:
+            type_set[4].append(line)
+
+    for i in xrange(6):
+        fout = open("output/mapping_table/character_shape_type_single_%i.txt" % i, "w")
+        for line in type_set[i]:
+            fout.write(line)
+        fout.close()
 
 if __name__ == '__main__':
     # check_kanji_length()
     # check_duplicated_kanji()
-    kanji_2_simple_chinese()
+    # kanji_2_simple_chinese()
     # simple_chinese_2_kanji()
+    # find_same_shape_character()
+    find_same_shape_character_single()
 
